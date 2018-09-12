@@ -1,133 +1,119 @@
 ﻿#pragma once
 #include "Commons.h"
 
-// forward declaration...
-class MemoryArena;
-
 template<size_t N>
-class SmallPool
-{
-	friend class MemoryArena;
+class SmallPool {
+    // forward declaration...
+    friend class MemoryArena;
 
-	static_assert(N >= 32 && !(N&(N - 1)),
-		"N has to be a power of two, no less than 32!");
-	struct Smallblock
-	{
-		size_t next;
-		size_t pad[N / sizeof(size_t) - 1];
-	};
+    static_assert(N >= 32 && !(N&(N - 1)),
+        "N has to be a power of two, no less than 32!");
+    struct Smallblock {
+        size_t next;
+        size_t pad[N / sizeof(size_t) - 1];
+    };
 
-	Smallblock* blocksPtr;
-	size_t headIdx;
-	size_t blockCount; // should be const
+    Smallblock* blocksPtr;
+    size_t headIdx;
+    size_t blockCount; // can be const
     size_t allocatedBlocks;
-	andi::mutex mtx;
+    andi::mutex mtx;
 
-	SmallPool() noexcept; // няма деструктор, разчитаме на Deinitialize
-	void Reset() noexcept;
-	void Initialize(size_t) noexcept;
-	void Deinitialize() noexcept;
+    SmallPool() noexcept; // no destructor, we rely on Deinitialize
+    void Reset() noexcept;
+    void Initialize(size_t) noexcept;
+    void Deinitialize() noexcept;
 
-	void* Allocate() noexcept;
-	void Deallocate(void*) noexcept(isRelease);
+    void* Allocate() noexcept;
+    void Deallocate(void*) noexcept(isRelease);
     void printCondition() const;
-	bool isInside(void*) const noexcept;
+    bool isInside(void*) const noexcept;
 #if HPC_DEBUG == 1
-	// тук сигнатурите работят обратно - подписани са само свободните блокове
-	static void signFreeBlock(Smallblock*) noexcept;
-	static void unsignFreeBlock(Smallblock*) noexcept;
-	static size_t getSignature(Smallblock*) noexcept;
-	static bool isSigned(Smallblock*) noexcept;
+    // Here the signatures work in the other way - only the free blocks are signed
+    static void signFreeBlock(Smallblock*) noexcept;
+    static void unsignFreeBlock(Smallblock*) noexcept;
+    static size_t getSignature(Smallblock*) noexcept;
+    static bool isSigned(Smallblock*) noexcept;
 #endif // HPC_DEBUG
 
 public:
-	// не е позволено копиране/преместване на pool-ове
-	SmallPool(const SmallPool&) = delete;
-	SmallPool& operator=(const SmallPool&) = delete;
-	SmallPool(SmallPool&&) = delete;
-	SmallPool& operator=(SmallPool&&) = delete;
+    // moving or copying of pools is forbidden
+    SmallPool(const SmallPool&) = delete;
+    SmallPool& operator=(const SmallPool&) = delete;
+    SmallPool(SmallPool&&) = delete;
+    SmallPool& operator=(SmallPool&&) = delete;
 };
 
 template<size_t N>
-SmallPool<N>::SmallPool() noexcept
-{
-	Reset();
+SmallPool<N>::SmallPool() noexcept {
+    Reset();
 }
 
 template<size_t N>
-void SmallPool<N>::Reset() noexcept
-{
-	blocksPtr = nullptr;
-	headIdx = 0;
-	blockCount = 0;
+void SmallPool<N>::Reset() noexcept {
+    blocksPtr = nullptr;
+    headIdx = 0;
+    blockCount = 0;
     allocatedBlocks = 0;
 }
 
 template<size_t N>
-void SmallPool<N>::Initialize(size_t count) noexcept
-{
-	blocksPtr = (Smallblock*)andi::aligned_malloc(N*count, 32);
-	for (size_t i = 0; i < count; i++)
-	{
-		blocksPtr[i].next = i + 1;
+void SmallPool<N>::Initialize(size_t count) noexcept {
+    blocksPtr = (Smallblock*)andi::aligned_malloc(N*count, 32);
+    for (size_t i = 0; i < count; i++) {
+        blocksPtr[i].next = i + 1;
 #if HPC_DEBUG == 1
-		signFreeBlock(blocksPtr + i);
+        signFreeBlock(blocksPtr + i);
 #endif // HPC_DEBUG
-	}
-	blocksPtr[count - 1].next = invalidIdx;
-	headIdx = 0;
-	blockCount = count;
+    }
+    blocksPtr[count - 1].next = invalidIdx;
+    headIdx = 0;
+    blockCount = count;
     allocatedBlocks = 0;
 }
 
 template<size_t N>
-void SmallPool<N>::Deinitialize() noexcept
-{
-	andi::aligned_free(blocksPtr);
-	Reset();
+void SmallPool<N>::Deinitialize() noexcept {
+    andi::aligned_free(blocksPtr);
+    Reset();
 }
 
 template<size_t N>
-void* SmallPool<N>::Allocate() noexcept
-{
-	mtx.lock();
-	if (headIdx == invalidIdx)
-	{
-		mtx.unlock();
-		return nullptr;
-	}
-	size_t free = headIdx;
-	headIdx = blocksPtr[free].next;
+void* SmallPool<N>::Allocate() noexcept {
+    mtx.lock();
+    if (headIdx == invalidIdx) {
+        mtx.unlock();
+        return nullptr;
+    }
+    size_t free = headIdx;
+    headIdx = blocksPtr[free].next;
     ++allocatedBlocks;
 #if HPC_DEBUG == 1
-	unsignFreeBlock(blocksPtr + free);
+    unsignFreeBlock(blocksPtr + free);
 #endif // HPC_DEBUG
-	mtx.unlock();
-	return blocksPtr + free;
+    mtx.unlock();
+    return blocksPtr + free;
 }
 
 template<size_t N>
-void SmallPool<N>::Deallocate(void* _Ptr) noexcept(isRelease)
-{
-	mtx.lock();
-	size_t idx = (Smallblock*)_Ptr - blocksPtr;
+void SmallPool<N>::Deallocate(void* _Ptr) noexcept(isRelease) {
+    mtx.lock();
+    size_t idx = (Smallblock*)_Ptr - blocksPtr;
 #if HPC_DEBUG == 1
-	if (isSigned((Smallblock*)_Ptr))
-	{
-		mtx.unlock();
-		throw std::runtime_error("MemoryArena: attempting to free memory that has already been freed!\n");
-	}
-	signFreeBlock((Smallblock*)(blocksPtr + idx));
+    if (isSigned((Smallblock*)_Ptr)) {
+        mtx.unlock();
+        throw std::runtime_error("MemoryArena: attempting to free memory that has already been freed!\n");
+    }
+    signFreeBlock((Smallblock*)(blocksPtr + idx));
 #endif // HPC_DEBUG
     --allocatedBlocks;
-	blocksPtr[idx].next = headIdx;
-	headIdx = idx;
-	mtx.unlock();
+    blocksPtr[idx].next = headIdx;
+    headIdx = idx;
+    mtx.unlock();
 }
 
 template<size_t N>
-void SmallPool<N>::printCondition() const
-{
+void SmallPool<N>::printCondition() const {
     std::cout << "SmallPool<" << N << ">:\n"
         << "  pool size:  " << blockCount * N << " bytes (" << blockCount << " blocks)\n"
         << "  free space: " << (blockCount - allocatedBlocks)*N << " bytes (" << blockCount - allocatedBlocks << " blocks)\n"
@@ -135,36 +121,31 @@ void SmallPool<N>::printCondition() const
 }
 
 template<size_t N>
-bool SmallPool<N>::isInside(void* _Ptr) const noexcept
-{
-	return _Ptr >= blocksPtr && _Ptr < (blocksPtr + blockCount);
+bool SmallPool<N>::isInside(void* _Ptr) const noexcept {
+    return _Ptr >= blocksPtr && _Ptr < (blocksPtr + blockCount);
 }
 
 #if HPC_DEBUG == 1
 template<size_t N>
-void SmallPool<N>::signFreeBlock(Smallblock* _Ptr) noexcept
-{
-	_Ptr->pad[0] = getSignature(_Ptr);
+void SmallPool<N>::signFreeBlock(Smallblock* _Ptr) noexcept {
+    _Ptr->pad[0] = getSignature(_Ptr);
 }
 
 template<size_t N>
-void SmallPool<N>::unsignFreeBlock(Smallblock* _Ptr) noexcept
-{
-	_Ptr->pad[0] = 0;
+void SmallPool<N>::unsignFreeBlock(Smallblock* _Ptr) noexcept {
+    _Ptr->pad[0] = 0;
 }
 
 template<size_t N>
-size_t SmallPool<N>::getSignature(Smallblock* _Ptr) noexcept
-{
-	return ~size_t(_Ptr);
+size_t SmallPool<N>::getSignature(Smallblock* _Ptr) noexcept {
+    return ~size_t(_Ptr);
 }
 
 template<size_t N>
-bool SmallPool<N>::isSigned(Smallblock* _Ptr) noexcept
-{
-	// шанс 1 на 2^64, който намалява експоненциално
-	// при всяко следващо пускане на програмата
-	return (_Ptr->pad[0] == getSignature(_Ptr));
+bool SmallPool<N>::isSigned(Smallblock* _Ptr) noexcept {
+    // There is a 1 in 2^64 chance of a false positive,
+    // decreasing exponentially every time the program is ran.
+    return (_Ptr->pad[0] == getSignature(_Ptr));
 }
 #endif // HPC_DEBUG
 
