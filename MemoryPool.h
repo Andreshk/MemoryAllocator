@@ -83,7 +83,7 @@ private:
 #endif // HPC_DEBUG
 
     void* allocateSuperblock(size_t) noexcept;
-    void deallocateSuperblock(void*) noexcept;
+    void deallocateSuperblock(Superblock*) noexcept;
     void insertFreeSuperblock(Superblock*) noexcept;
     void removeFreeSuperblock(Superblock*) noexcept;
     Superblock* findFreeSuperblock(uint32_t) const noexcept;

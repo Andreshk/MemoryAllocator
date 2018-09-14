@@ -96,11 +96,11 @@ void* SmallPool<N>::Allocate() noexcept {
 }
 
 template<size_t N>
-void SmallPool<N>::Deallocate(void* _Ptr) noexcept(isRelease) {
+void SmallPool<N>::Deallocate(void* sblk) noexcept(isRelease) {
     mtx.lock();
-    size_t idx = (Smallblock*)_Ptr - blocksPtr;
+    size_t idx = (Smallblock*)sblk - blocksPtr;
 #if HPC_DEBUG == 1
-    if (isSigned((Smallblock*)_Ptr)) {
+    if (isSigned((Smallblock*)ptr)) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: attempting to free memory that has already been freed!\n");
     }
@@ -121,31 +121,31 @@ void SmallPool<N>::printCondition() const {
 }
 
 template<size_t N>
-bool SmallPool<N>::isInside(void* _Ptr) const noexcept {
-    return _Ptr >= blocksPtr && _Ptr < (blocksPtr + blockCount);
+bool SmallPool<N>::isInside(void* ptr) const noexcept {
+    return ptr >= blocksPtr && ptr < (blocksPtr + blockCount);
 }
 
 #if HPC_DEBUG == 1
 template<size_t N>
-void SmallPool<N>::signFreeBlock(Smallblock* _Ptr) noexcept {
-    _Ptr->pad[0] = getSignature(_Ptr);
+void SmallPool<N>::signFreeBlock(Smallblock* ptr) noexcept {
+    ptr->pad[0] = getSignature(ptr);
 }
 
 template<size_t N>
-void SmallPool<N>::unsignFreeBlock(Smallblock* _Ptr) noexcept {
-    _Ptr->pad[0] = 0;
+void SmallPool<N>::unsignFreeBlock(Smallblock* ptr) noexcept {
+    ptr->pad[0] = 0;
 }
 
 template<size_t N>
-size_t SmallPool<N>::getSignature(Smallblock* _Ptr) noexcept {
-    return ~size_t(_Ptr);
+size_t SmallPool<N>::getSignature(Smallblock* ptr) noexcept {
+    return ~size_t(ptr);
 }
 
 template<size_t N>
-bool SmallPool<N>::isSigned(Smallblock* _Ptr) noexcept {
+bool SmallPool<N>::isSigned(Smallblock* ptr) noexcept {
     // There is a 1 in 2^64 chance of a false positive,
     // decreasing exponentially every time the program is ran.
-    return (_Ptr->pad[0] == getSignature(_Ptr));
+    return (ptr->pad[0] == getSignature(ptr));
 }
 #endif // HPC_DEBUG
 

@@ -1,20 +1,20 @@
 ﻿#include "Commons.h"
 
-void* andi::aligned_malloc(size_t _Size, size_t _Alignment) noexcept {
+void* andi::aligned_malloc(size_t size, size_t alignment) noexcept {
 #if defined(_MSC_VER)
-    return _aligned_malloc(_Size, _Alignment);
+    return _aligned_malloc(size, alignment);
 #else
     void* ptr;
-    posix_memalign(&ptr, _Alignment, _Size);
+    posix_memalign(&ptr, alignment, size);
     return ptr;
 #endif
 }
 
-void andi::aligned_free(void* _Ptr) noexcept {
+void andi::aligned_free(void* ptr) noexcept {
 #if defined(_MSC_VER)
-    _aligned_free(_Ptr);
+    _aligned_free(ptr);
 #else
-    free(_Ptr);
+    free(ptr);
 #endif
 }
 

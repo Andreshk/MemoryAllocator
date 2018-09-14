@@ -58,15 +58,16 @@ void* MemoryPool::Allocate(size_t n) noexcept {
     return ptr;
 }
 
-void MemoryPool::Deallocate(void* _Ptr) noexcept(isRelease) {
+void MemoryPool::Deallocate(void* ptr) noexcept(isRelease) {
     mtx.lock();
 #if HPC_DEBUG == 1
-    if (!isValidSignature(fromUserAddress(_Ptr))) {
+    if (!isValidSignature(fromUserAddress(ptr))) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: Pointer is either already freed or is not the one, returned to user!\n");
     }
 #endif // HPC_DEBUG
-    deallocateSuperblock(_Ptr);
+    Superblock* sblk = fromUserAddress(ptr);
+    deallocateSuperblock(sblk);
     mtx.unlock();
 }
 
@@ -74,8 +75,8 @@ size_t MemoryPool::max_size() noexcept {
     return allocatorMaxSize;
 }
 
-bool MemoryPool::isInside(void* _Ptr) const noexcept {
-    return _Ptr >= poolPtr && _Ptr < (poolPtr + largePoolSize + 32);
+bool MemoryPool::isInside(void* ptr) const noexcept {
+    return ptr >= poolPtr && ptr < (poolPtr + largePoolSize + 32);
 }
 
 void MemoryPool::printCondition() const {
@@ -98,25 +99,25 @@ void MemoryPool::printCondition() const {
 }
 
 #if HPC_DEBUG == 1
-void MemoryPool::sign(Superblock* _Ptr) noexcept {
-    _Ptr->signature = getSignature(_Ptr);
+void MemoryPool::sign(Superblock* sblk) noexcept {
+    sblk->signature = getSignature(sblk);
 }
 
-uint32_t MemoryPool::getSignature(Superblock* _Ptr) noexcept {
-    return (~_Ptr->blueprint) ^ uint32_t(uintptr_t(_Ptr) >> 8);
+uint32_t MemoryPool::getSignature(Superblock* sblk) noexcept {
+    return (~sblk->blueprint) ^ uint32_t(uintptr_t(sblk) >> 8);
 }
 
-bool MemoryPool::isValidSignature(Superblock* _Ptr) noexcept {
+bool MemoryPool::isValidSignature(Superblock* sblk) noexcept {
     /* The probability of a false positive (a random address containing
      * a valid signature) is 1/65536 * 28/65536 * 1/2^32, or approximately
      * 1 in 600,000,000,000,000,000 (!). What's more, since the address
      * itself is used in generating the signature, at every following run
      * the probability is multiplied by this number: 1 in 10^35, 1 на 10^53,
      * ...in general, practically zero just after the first run */ 
-    return (_Ptr->free==0
-         && _Ptr->k > minBlockSizeLog
-         && _Ptr->k <= largePoolSizeLog + 1
-         && _Ptr->signature == getSignature(_Ptr));
+    return (sblk->free==0
+         && sblk->k > minBlockSizeLog
+         && sblk->k <= largePoolSizeLog + 1
+         && sblk->signature == getSignature(sblk));
 }
 #endif // HPC_DEBUG
 
@@ -199,34 +200,33 @@ void* MemoryPool::allocateSuperblock(size_t n) noexcept {
     return toUserAddress(addr);
 }
 
-void MemoryPool::deallocateSuperblock(void* _Ptr) noexcept {
+void MemoryPool::deallocateSuperblock(Superblock* sblk) noexcept {
     // Marks the Superblock as free and begins to
     // merge it upwards, recursively
-    Superblock* sblk = fromUserAddress(_Ptr);
     sblk->free = 1;
     recursiveMerge(sblk);
 }
 
-void MemoryPool::insertFreeSuperblock(Superblock* _Ptr) noexcept {
+void MemoryPool::insertFreeSuperblock(Superblock* sblk) noexcept {
     // Add this Superblock to the corresponding list in the table
-    const uint32_t k = _Ptr->k;
-    const uint32_t i = calculateI(_Ptr);
-    _Ptr->next = freeBlocks[k][i].next;
-    freeBlocks[k][i].next = _Ptr;
-    _Ptr->prev = &freeBlocks[k][i]; // == ptr->next->prev
-    _Ptr->next->prev = _Ptr;
+    const uint32_t k = sblk->k;
+    const uint32_t i = calculateI(sblk);
+    sblk->next = freeBlocks[k][i].next;
+    freeBlocks[k][i].next = sblk;
+    sblk->prev = &freeBlocks[k][i]; // == ptr->next->prev
+    sblk->next->prev = sblk;
     // Update the bitvector, that a free Superblock of this size now is sure to exist
     bitvectors[k] |= (1ui64 << i);
     leastSetBits[k] = leastSetBit(bitvectors[k]);	
 }
 
-void MemoryPool::removeFreeSuperblock(Superblock* _Ptr) noexcept {
+void MemoryPool::removeFreeSuperblock(Superblock* sblk) noexcept {
     // Remove the Superblock from the system info
-    _Ptr->prev->next = _Ptr->next;
-    _Ptr->next->prev = _Ptr->prev;
+    sblk->prev->next = sblk->next;
+    sblk->next->prev = sblk->prev;
     //ptr->next = ptr->prev = nullptr;
-    const uint32_t k = _Ptr->k;
-    const uint32_t i = calculateI(_Ptr);
+    const uint32_t k = sblk->k;
+    const uint32_t i = calculateI(sblk);
     // If there are no more Superblocks of size (k,i),
     // indicated by the list having only one element,
     // we free the i-th bit of the k-th bitvector
@@ -248,12 +248,12 @@ Superblock* MemoryPool::findFreeSuperblock(uint32_t j) const noexcept {
     return freeBlocks[min_k][min_i].next;
 }
 
-Superblock* MemoryPool::findBuddySuperblock(Superblock* _Ptr) const noexcept {
+Superblock* MemoryPool::findBuddySuperblock(Superblock* sblk) const noexcept {
     // Finding a Superblock's buddy is as simple as flipping the i+1-st bit of its virtual address
-    return fromVirtualOffset(toVirtualOffset(_Ptr) ^ (uintptr_t(1) << calculateI(_Ptr)));
+    return fromVirtualOffset(toVirtualOffset(sblk) ^ (uintptr_t(1) << calculateI(sblk)));
 }
 
-void MemoryPool::recursiveMerge(Superblock* _Ptr) noexcept {
+void MemoryPool::recursiveMerge(Superblock* sblk) noexcept {
     // Superblocks are merged only if these three conditions hold:
     // - there is something left to merge (i.e. the pool isn't completely empty)
     // - the current Superblock's buddy is free
@@ -261,44 +261,44 @@ void MemoryPool::recursiveMerge(Superblock* _Ptr) noexcept {
     //   where 2^i is the size of the current block
     // Otherwise, the block is simply inserted to its corresponding
     // list, as a normal block of size 2^j for some j
-    Superblock* buddy = findBuddySuperblock(_Ptr);
-    if ((uintptr_t(_Ptr) == virtualZero && _Ptr->k == largePoolSizeLog + 1) ||
-        buddy->free == 0 || calculateI(_Ptr) != calculateI(buddy)) {
+    Superblock* buddy = findBuddySuperblock(sblk);
+    if ((uintptr_t(sblk) == virtualZero && sblk->k == largePoolSizeLog + 1) ||
+        buddy->free == 0 || calculateI(sblk) != calculateI(buddy)) {
 #if HPC_DEBUG == 1
-        sign(_Ptr);
+        sign(sblk);
 #endif
-        insertFreeSuperblock(_Ptr);
+        insertFreeSuperblock(sblk);
         return;
     }
     // There will be a merge, so we remove the buddy from the system info
     removeFreeSuperblock(buddy);
     const uint32_t buddy_k = buddy->k;	// старото k
     // Unite the buddies in a block of size 2^k (again, represented as 2^(k+1) - 2^k)
-    if (buddy < _Ptr)
-        _Ptr = buddy;
-    _Ptr->k = buddy_k + 1;
+    if (buddy < sblk)
+        sblk = buddy;
+    sblk->k = buddy_k + 1;
     // Merge upwards until possible.
-    recursiveMerge(_Ptr); // Tail recursion optimization should probably take care of this call.
+    recursiveMerge(sblk); // Tail recursion optimization should probably take care of this call.
 }
 
-void* MemoryPool::toUserAddress(Superblock* _Ptr) noexcept {
-    return (void*)(uintptr_t(_Ptr) + headerSize);
+void* MemoryPool::toUserAddress(Superblock* sblk) noexcept {
+    return (void*)(uintptr_t(sblk) + headerSize);
 }
 
-Superblock* MemoryPool::fromUserAddress(void* _Ptr) noexcept {
-    return (Superblock*)(uintptr_t(_Ptr) - headerSize);
+Superblock* MemoryPool::fromUserAddress(void* ptr) noexcept {
+    return (Superblock*)(uintptr_t(ptr) - headerSize);
 }
 
-uintptr_t MemoryPool::toVirtualOffset(Superblock* _Ptr) const noexcept {
-    return uintptr_t(_Ptr) - virtualZero;
+uintptr_t MemoryPool::toVirtualOffset(Superblock* sblk) const noexcept {
+    return uintptr_t(sblk) - virtualZero;
 }
 
-Superblock* MemoryPool::fromVirtualOffset(uintptr_t _Offset) const noexcept {
-    return (Superblock*)(virtualZero + _Offset);
+Superblock* MemoryPool::fromVirtualOffset(uintptr_t offset) const noexcept {
+    return (Superblock*)(virtualZero + offset);
 }
 
-uint32_t MemoryPool::calculateI(Superblock* _Ptr) const noexcept {
-    return min(leastSetBit(toVirtualOffset(_Ptr)), _Ptr->k - 1);
+uint32_t MemoryPool::calculateI(Superblock* sblk) const noexcept {
+    return min(leastSetBit(toVirtualOffset(sblk)), sblk->k - 1);
 }
 
 uint32_t MemoryPool::calculateJ(size_t n) noexcept {

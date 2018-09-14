@@ -11,7 +11,8 @@
 
 /* TO-DO:
  - fix comments about false positive probability
- - apply coding style guide for argument names _Foo, _Bar
+ - remove "+32" magical constant in MemoryPool::isInside()
+ - rearrange member data by size
  - rename MemoryPool -> BuddyAllocator
  - rename mutex to spin-lock
  - split Commons into Defines & Utilities and move stuff there (math, benchmarking, mutex)

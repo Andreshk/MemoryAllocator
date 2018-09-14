@@ -99,39 +99,39 @@ void* MemoryArena::Allocate(size_t n) noexcept(isRelease) {
     return ptr;
 }
 
-void MemoryArena::Deallocate(void* _Ptr) noexcept(isRelease) {
-    if (!_Ptr)
+void MemoryArena::Deallocate(void* ptr) noexcept(isRelease) {
+    if (!ptr)
         return;
 
 #if HPC_DEBUG == 1
     if (!arena._isInitialized)
         throw std::runtime_error("MemoryArena must be initialized before deallocation!\n");
-    if (!arena.isInside(_Ptr))
+    if (!arena.isInside(ptr))
         throw std::runtime_error("MemoryArena: pointer is outside of the address space!\n");
 #endif // HPC_DEBUG
 
 #if USE_SMALL_POOLS == 0
-    if (arena.largePool[0].isInside(_Ptr))
-        arena.largePool[0].Deallocate(_Ptr);
+    if (arena.largePool[0].isInside(ptr))
+        arena.largePool[0].Deallocate(ptr);
     else
-        arena.largePool[1].Deallocate(_Ptr);
+        arena.largePool[1].Deallocate(ptr);
 #else
-    if (arena.tp0.isInside(_Ptr))
-        arena.tp0.Deallocate(_Ptr);
-    else if (arena.tp1.isInside(_Ptr))
-        arena.tp1.Deallocate(_Ptr);
-    else if (arena.tp2.isInside(_Ptr))
-        arena.tp2.Deallocate(_Ptr);
-    else if (arena.tp3.isInside(_Ptr))
-        arena.tp3.Deallocate(_Ptr);
-    else if (arena.tp4.isInside(_Ptr))
-        arena.tp4.Deallocate(_Ptr);
-    else if (arena.tp5.isInside(_Ptr))
-        arena.tp5.Deallocate(_Ptr);
-    else if (arena.largePool[0].isInside(_Ptr))
-        arena.largePool[0].Deallocate(_Ptr);
+    if (arena.tp0.isInside(ptr))
+        arena.tp0.Deallocate(ptr);
+    else if (arena.tp1.isInside(ptr))
+        arena.tp1.Deallocate(ptr);
+    else if (arena.tp2.isInside(ptr))
+        arena.tp2.Deallocate(ptr);
+    else if (arena.tp3.isInside(ptr))
+        arena.tp3.Deallocate(ptr);
+    else if (arena.tp4.isInside(ptr))
+        arena.tp4.Deallocate(ptr);
+    else if (arena.tp5.isInside(ptr))
+        arena.tp5.Deallocate(ptr);
+    else if (arena.largePool[0].isInside(ptr))
+        arena.largePool[0].Deallocate(ptr);
     else
-        arena.largePool[1].Deallocate(_Ptr);
+        arena.largePool[1].Deallocate(ptr);
 #endif // USE_SMALL_POOLS && USE_TEMPL_POOLS
 }
 
@@ -181,14 +181,14 @@ void MemoryArena::UnlockAll() noexcept {
     arena.largePool[1].mtx.unlock();
 }
 
-bool MemoryArena::isInside(void* _Ptr) noexcept {
+bool MemoryArena::isInside(void* ptr) noexcept {
 #if USE_SMALL_POOLS == 0
-    return (arena.largePool[0].isInside(_Ptr) || arena.largePool[1].isInside(_Ptr));
+    return (arena.largePool[0].isInside(ptr) || arena.largePool[1].isInside(ptr));
 #else
-    return (arena.tp0.isInside(_Ptr) || arena.tp1.isInside(_Ptr) ||
-            arena.tp2.isInside(_Ptr) || arena.tp3.isInside(_Ptr) ||
-            arena.tp4.isInside(_Ptr) || arena.tp5.isInside(_Ptr) ||
-            arena.largePool[0].isInside(_Ptr) || arena.largePool[1].isInside(_Ptr));
+    return (arena.tp0.isInside(ptr) || arena.tp1.isInside(ptr) ||
+            arena.tp2.isInside(ptr) || arena.tp3.isInside(ptr) ||
+            arena.tp4.isInside(ptr) || arena.tp5.isInside(ptr) ||
+            arena.largePool[0].isInside(ptr) || arena.largePool[1].isInside(ptr));
 #endif // USE_SMALL_POOLS && USE_TEMPL_POOLS
 }
 
