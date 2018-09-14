@@ -9,6 +9,18 @@
 #include <chrono>
 #include <random>
 
+/* TO-DO:
+ - fix comments about false positive probability
+ - apply coding style guide for argument names _Foo, _Bar
+ - rename MemoryPool -> BuddyAllocator
+ - rename mutex to spin-lock
+ - split Commons into Defines & Utilities and move stuff there (math, benchmarking, mutex)
+ - implement vassert() & remove exceptions
+ - make an Allocator interface
+ - make minimal andi::allocator (Bob Steagall 2017, 43:56)
+ - simplify time measurement (A chrono tutorial, 50:03)
+ */
+
 // Time measuring
 using Clock = std::chrono::high_resolution_clock;
 using TimePoint = Clock::time_point;

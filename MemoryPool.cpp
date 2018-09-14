@@ -21,7 +21,7 @@ void MemoryPool::Initialize() noexcept {
     const size_t poolSize = size_t(1) << largePoolSizeLog;
     // Allocate the pool address space...
     poolPtr = (byte*)andi::aligned_malloc(poolSize + 32, 32);
-    virtualZero = ptr_t(poolPtr) + 32 - headerSize;
+    virtualZero = uintptr_t(poolPtr) + 32 - headerSize;
     // ...initialize the system information...
     for (uint32_t k = 0; k < largePoolSizeLog + 2; k++)
     {
@@ -103,7 +103,7 @@ void MemoryPool::sign(Superblock* _Ptr) noexcept {
 }
 
 uint32_t MemoryPool::getSignature(Superblock* _Ptr) noexcept {
-    return (~_Ptr->blueprint) ^ uint32_t(ptr_t(_Ptr) >> 8);
+    return (~_Ptr->blueprint) ^ uint32_t(uintptr_t(_Ptr) >> 8);
 }
 
 bool MemoryPool::isValidSignature(Superblock* _Ptr) noexcept {
@@ -138,7 +138,7 @@ void* MemoryPool::allocateSuperblock(size_t n) noexcept {
         sblk->k = j + 1;
 
         // update the system info about their existence
-        Superblock* block1 = (Superblock*)(ptr_t(sblk) + (ptr_t(1) << j));
+        Superblock* block1 = (Superblock*)(uintptr_t(sblk) + (uintptr_t(1) << j));
         block1->free = 1;
         block1->k = old_i;
 #if HPC_DEBUG == 1
@@ -147,7 +147,7 @@ void* MemoryPool::allocateSuperblock(size_t n) noexcept {
         insertFreeSuperblock(block1);
 
         if (old_k != old_i + 1) {
-            Superblock* block2 = (Superblock*)(ptr_t(sblk) + (ptr_t(1) << old_i));
+            Superblock* block2 = (Superblock*)(uintptr_t(sblk) + (uintptr_t(1) << old_i));
             block2->free = 1;
             block2->k = old_k;
 #if HPC_DEBUG == 1
@@ -164,7 +164,7 @@ void* MemoryPool::allocateSuperblock(size_t n) noexcept {
     }
 
     // Calculates where in the Superblock the user address should point to
-    Superblock* addr = (Superblock*)(ptr_t(sblk) + (ptr_t(1) << j) - (ptr_t(1) << old_i));
+    Superblock* addr = (Superblock*)(uintptr_t(sblk) + (uintptr_t(1) << j) - (uintptr_t(1) << old_i));
     // Mark as a used block & save its k,i
     addr->free = 0;
     addr->k = j + 1;
@@ -182,7 +182,7 @@ void* MemoryPool::allocateSuperblock(size_t n) noexcept {
     // A "right" super block may not be needed, too
     if (j < old_k - 1) {
         // Again, mark as free and update its k,i
-        Superblock* rblock = (Superblock*)(ptr_t(addr) + (ptr_t(1) << j));
+        Superblock* rblock = (Superblock*)(uintptr_t(addr) + (uintptr_t(1) << j));
         rblock->free = 1;
         rblock->k = old_k;
 #if HPC_DEBUG == 1
@@ -250,7 +250,7 @@ Superblock* MemoryPool::findFreeSuperblock(uint32_t j) const noexcept {
 
 Superblock* MemoryPool::findBuddySuperblock(Superblock* _Ptr) const noexcept {
     // Finding a Superblock's buddy is as simple as flipping the i+1-st bit of its virtual address
-    return fromVirtualOffset(toVirtualOffset(_Ptr) ^ (ptr_t(1) << calculateI(_Ptr)));
+    return fromVirtualOffset(toVirtualOffset(_Ptr) ^ (uintptr_t(1) << calculateI(_Ptr)));
 }
 
 void MemoryPool::recursiveMerge(Superblock* _Ptr) noexcept {
@@ -262,7 +262,7 @@ void MemoryPool::recursiveMerge(Superblock* _Ptr) noexcept {
     // Otherwise, the block is simply inserted to its corresponding
     // list, as a normal block of size 2^j for some j
     Superblock* buddy = findBuddySuperblock(_Ptr);
-    if ((ptr_t(_Ptr) == virtualZero && _Ptr->k == largePoolSizeLog + 1) ||
+    if ((uintptr_t(_Ptr) == virtualZero && _Ptr->k == largePoolSizeLog + 1) ||
         buddy->free == 0 || calculateI(_Ptr) != calculateI(buddy)) {
 #if HPC_DEBUG == 1
         sign(_Ptr);
@@ -282,18 +282,18 @@ void MemoryPool::recursiveMerge(Superblock* _Ptr) noexcept {
 }
 
 void* MemoryPool::toUserAddress(Superblock* _Ptr) noexcept {
-    return (void*)(ptr_t(_Ptr) + headerSize);
+    return (void*)(uintptr_t(_Ptr) + headerSize);
 }
 
 Superblock* MemoryPool::fromUserAddress(void* _Ptr) noexcept {
-    return (Superblock*)(ptr_t(_Ptr) - headerSize);
+    return (Superblock*)(uintptr_t(_Ptr) - headerSize);
 }
 
-ptr_t MemoryPool::toVirtualOffset(Superblock* _Ptr) const noexcept {
-    return ptr_t(_Ptr) - virtualZero;
+uintptr_t MemoryPool::toVirtualOffset(Superblock* _Ptr) const noexcept {
+    return uintptr_t(_Ptr) - virtualZero;
 }
 
-Superblock* MemoryPool::fromVirtualOffset(ptr_t _Offset) const noexcept {
+Superblock* MemoryPool::fromVirtualOffset(uintptr_t _Offset) const noexcept {
     return (Superblock*)(virtualZero + _Offset);
 }
 

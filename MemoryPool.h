@@ -22,16 +22,12 @@ struct Superblock {
     Superblock* next;
 };
 
-// Global constants and definition for the buddy allocators
-using byte  = char;
-using ptr_t = std::uintptr_t; // the appropriate unsigned type for casting to/from pointers
-
 // Superblock header size, in bytes
-constexpr size_t    headerSize = offsetof(Superblock, prev);
+constexpr size_t   headerSize = offsetof(Superblock, prev);
 // Logarithm of the smallest block size, which can be allocated
-constexpr uint32_t  minBlockSizeLog = 5;
+constexpr uint32_t minBlockSizeLog = 5;
 // The upper limit for a single allocation
-constexpr size_t    allocatorMaxSize = (largePoolSize / 4) - headerSize;
+constexpr size_t   allocatorMaxSize = (largePoolSize / 4) - headerSize;
 
 // Sanity check for global constants' validity
 static_assert(headerSize < 32 && largePoolSizeLog <= 63 && headerSize < (size_t(1) << minBlockSizeLog) &&
@@ -60,10 +56,11 @@ static_assert(headerSize < 32 && largePoolSizeLog <= 63 && headerSize < (size_t(
 class MemoryPool {
     // forward declaration...
     friend class MemoryArena;
+    using byte = uint8_t;
 
 private:
     byte* poolPtr;
-    ptr_t virtualZero;
+    uintptr_t virtualZero;
     Superblock freeBlocks[largePoolSizeLog + 2][largePoolSizeLog + 1];
     uint64_t bitvectors[largePoolSizeLog + 2];
     uint32_t leastSetBits[largePoolSizeLog + 2];
@@ -94,8 +91,8 @@ private:
     void recursiveMerge(Superblock*) noexcept;
     static void* toUserAddress(Superblock*) noexcept;
     static Superblock* fromUserAddress(void*) noexcept;
-    ptr_t toVirtualOffset(Superblock*) const noexcept;
-    Superblock* fromVirtualOffset(ptr_t) const noexcept;
+    uintptr_t toVirtualOffset(Superblock*) const noexcept;
+    Superblock* fromVirtualOffset(uintptr_t) const noexcept;
     uint32_t calculateI(Superblock*) const noexcept;
     static uint32_t calculateJ(size_t) noexcept;
 
