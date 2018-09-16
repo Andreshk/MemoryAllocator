@@ -22,8 +22,8 @@ void MemoryPool::Initialize() noexcept {
     // Allocate the pool address space...
     // The extra space is needed for the header of the first block, so that
     // the user-returned address of the first block is aligned at 32 bytes.
-    poolPtr = (byte*)andi::aligned_malloc(poolSize + 32, 32);
-    virtualZero = uintptr_t(poolPtr) + 32 - headerSize;
+    poolPtr = (byte*)andi::aligned_malloc(poolSize + allocAlignment);
+    virtualZero = uintptr_t(poolPtr) + allocAlignment - headerSize;
     //vassert(virtualZero % alignof(Superblock) == 0);
     // ...initialize the system information...
     for (uint32_t k = 0; k < largePoolSizeLog + 2; k++) {
@@ -62,7 +62,7 @@ void* MemoryPool::Allocate(size_t n) noexcept {
 void MemoryPool::Deallocate(void* ptr) noexcept(isRelease) {
     mtx.lock();
 #if HPC_DEBUG == 1
-    if (uintptr_t(ptr) % 32 != 0) {
+    if (uintptr_t(ptr) % allocAlignment != 0) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: Attempting to free a non-aligned pointer!");
     } else if (!isValidSignature(fromUserAddress(ptr))) {
@@ -80,8 +80,8 @@ size_t MemoryPool::max_size() noexcept {
 }
 
 bool MemoryPool::isInside(void* ptr) const noexcept {
-    // The +32 here also compensates for the over-allocation for the first block's header
-    return ptr >= poolPtr && ptr < (poolPtr + largePoolSize + 32);
+    // The +allocAlignment here also compensates for the over-allocation for the first block's header
+    return ptr >= poolPtr && ptr < (poolPtr + largePoolSize + allocAlignment);
 }
 
 void MemoryPool::printCondition() const {
@@ -324,15 +324,15 @@ uint32_t leastSetBit(uint32_t x) {
 }
 
 uint32_t leastSetBit(uint64_t x) {
-    if (x & 0xFFFFFFFFui64)
-        return leastSetBit(uint32_t(x & 0xFFFFFFFFui64));
+    if (x & 0xFFFF'FFFFui64)
+        return leastSetBit(uint32_t(x & 0xFFFF'FFFFui64));
     else if (x != 0)
         return leastSetBit(uint32_t(x >> 32)) + 32;
     else
         return 64;
 }
-
-uint32_t fastlog2(uint32_t x) { // calculates floor(log2(x)) for every х
+// calculates floor(log2(x)) for every х
+uint32_t fastlog2(uint32_t x) {
     static const uint32_t DeBruijnLog2Inexact[32] = {
         0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
         8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
@@ -346,9 +346,9 @@ uint32_t fastlog2(uint32_t x) { // calculates floor(log2(x)) for every х
 
     return DeBruijnLog2Inexact[(x * 0x07C4ACDDU) >> 27];
 }
-
-uint32_t fastlog2(uint64_t x) { // calculates floor(log2(x)) for every x
-    if (x < 0x100000000ui64)
+// calculates floor(log2(x)) for every x
+uint32_t fastlog2(uint64_t x) {
+    if (x < 0x1'0000'0000ui64)
         return fastlog2(uint32_t(x));
     else
         return 32 + fastlog2(uint32_t(x >> 32));

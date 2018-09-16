@@ -1,11 +1,11 @@
 ﻿#include "Commons.h"
 
-void* andi::aligned_malloc(size_t size, size_t alignment) noexcept {
+void* andi::aligned_malloc(size_t size) noexcept {
 #if defined(_MSC_VER)
-    return _aligned_malloc(size, alignment);
+    return _aligned_malloc(size, allocAlignment);
 #else
     void* ptr;
-    posix_memalign(&ptr, alignment, size);
+    posix_memalign(&ptr, allocAlignment, size);
     return ptr;
 #endif
 }

@@ -6,7 +6,7 @@ class SmallPool {
     // forward declaration...
     friend class MemoryArena;
 
-    static_assert(N >= 32 && !(N&(N - 1)),
+    static_assert(N >= allocAlignment && !(N&(N - 1)),
         "N has to be a power of two, no less than 32!");
     struct Smallblock {
         size_t next;
@@ -57,7 +57,7 @@ void SmallPool<N, Count>::Reset() noexcept {
 
 template<size_t N, size_t Count>
 void SmallPool<N, Count>::Initialize() noexcept {
-    blocksPtr = (Smallblock*)andi::aligned_malloc(N*Count, 32);
+    blocksPtr = (Smallblock*)andi::aligned_malloc(N*Count);
     for (size_t i = 0; i < Count; i++) {
         blocksPtr[i].next = i + 1;
 #if HPC_DEBUG == 1
@@ -97,7 +97,7 @@ void SmallPool<N, Count>::Deallocate(void* sblk) noexcept(isRelease) {
     mtx.lock();
     size_t idx = (Smallblock*)sblk - blocksPtr;
 #if HPC_DEBUG == 1
-    if (uintptr_t(sblk) % 32 != 0) {
+    if (uintptr_t(sblk) % allocAlignment != 0) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: Attempting to free a non-aligned pointer!");
     } else if (isSigned((Smallblock*)sblk)) {

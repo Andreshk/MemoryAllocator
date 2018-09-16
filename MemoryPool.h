@@ -23,15 +23,15 @@ struct Superblock {
 };
 
 // Superblock header size, in bytes
-constexpr size_t   headerSize = offsetof(Superblock, prev);
+constexpr size_t   headerSize = offsetof(Superblock, prev); // fun fact: this causes undefined behaviour
 // Logarithm of the smallest block size, which can be allocated
 constexpr uint32_t minBlockSizeLog = 5;
 // The upper limit for a single allocation
 constexpr size_t   allocatorMaxSize = (largePoolSize / 4) - headerSize;
 
 // Sanity checks for global constants' validity
-static_assert(headerSize < 32);
-static_assert(alignof(Superblock) <= 32 && (32 % alignof(Superblock)) == 0); // virtualZero should be a valid Superblock address
+static_assert(headerSize < allocAlignment);
+static_assert(alignof(Superblock) <= allocAlignment && (allocAlignment % alignof(Superblock)) == 0); // virtualZero should be a valid Superblock address
 static_assert(largePoolSizeLog <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
 static_assert(headerSize < (size_t(1) << minBlockSizeLog)); // otherwise headers overlap and mayhem ensues
 static_assert(minBlockSizeLog >= 5 && minBlockSizeLog <= largePoolSizeLog);
