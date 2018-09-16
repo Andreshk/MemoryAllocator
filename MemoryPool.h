@@ -29,18 +29,20 @@ constexpr uint32_t minBlockSizeLog = 5;
 // The upper limit for a single allocation
 constexpr size_t   allocatorMaxSize = (largePoolSize / 4) - headerSize;
 
-// Sanity check for global constants' validity
-static_assert(headerSize < 32 && largePoolSizeLog <= 63 && headerSize < (size_t(1) << minBlockSizeLog) &&
-              minBlockSizeLog >= 5 && minBlockSizeLog <= largePoolSizeLog && allocatorMaxSize < largePoolSize &&
-              allocatorMaxSize + headerSize - 1 < 0x100000000ui64, "Invalid global variable values!");
+// Sanity checks for global constants' validity
+static_assert(headerSize < 32);
+static_assert(largePoolSizeLog <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
+static_assert(headerSize < (size_t(1) << minBlockSizeLog)); // otherwise headers overlap and mayhem ensues
+static_assert(minBlockSizeLog >= 5 && minBlockSizeLog <= largePoolSizeLog);
+static_assert(allocatorMaxSize < largePoolSize && allocatorMaxSize + headerSize - 1 < 0x100000000ui64);
 
 /*
  - The memory returned to the user is allocated from a large address space (pool)
  with a power of two size (f.e. 4GB). This address space is allocated from the
  system once, on initialization and never changes before deinitialization.
  - The pool's state is cotrolled by a table of Superblocks, in which at
- position (k,i) we keep a Superblock of size 2^k-2^i bytes, pointing to
- the other free Superblocks of the same size.
+ position (k,i) we keep a list of Superblocks of size 2^k-2^i bytes,
+ containing all other free Superblocks of the same size.
  - The free Superblocks of a given size are linked in a doubly-connected
  cyclic (!) linked list, since merging requires removing of a block at a
  random position in its list. Being cyclic and always non-empty alleviates
