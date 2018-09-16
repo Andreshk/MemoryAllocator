@@ -59,11 +59,11 @@ class MemoryPool {
     using byte = uint8_t;
 
 private:
-    byte* poolPtr;
-    uintptr_t virtualZero;
     Superblock freeBlocks[largePoolSizeLog + 2][largePoolSizeLog + 1];
     uint64_t bitvectors[largePoolSizeLog + 2];
     uint32_t leastSetBits[largePoolSizeLog + 2];
+    byte* poolPtr;
+    uintptr_t virtualZero;
     andi::mutex mtx;
 
     MemoryPool() noexcept; // no destructor, we rely on Deinitialize

@@ -20,8 +20,8 @@ class MemoryArena {
     SmallPool<1024, sizes[5]> tp5;
 #endif // USE_SMALL_POOLS
 
-    std::atomic_uint32_t toggle;
     MemoryPool largePool[2];
+    std::atomic_uint32_t toggle;
     andi::mutex initializationmtx;
     bool _isInitialized;
 
