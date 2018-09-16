@@ -31,6 +31,7 @@ constexpr size_t   allocatorMaxSize = (largePoolSize / 4) - headerSize;
 
 // Sanity checks for global constants' validity
 static_assert(headerSize < 32);
+static_assert(alignof(Superblock) <= 32 && (32 % alignof(Superblock)) == 0); // virtualZero should be a valid Superblock address
 static_assert(largePoolSizeLog <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
 static_assert(headerSize < (size_t(1) << minBlockSizeLog)); // otherwise headers overlap and mayhem ensues
 static_assert(minBlockSizeLog >= 5 && minBlockSizeLog <= largePoolSizeLog);

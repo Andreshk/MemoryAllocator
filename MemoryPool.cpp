@@ -24,6 +24,7 @@ void MemoryPool::Initialize() noexcept {
     // the user-returned address of the first block is aligned at 32 bytes.
     poolPtr = (byte*)andi::aligned_malloc(poolSize + 32, 32);
     virtualZero = uintptr_t(poolPtr) + 32 - headerSize;
+    //vassert(virtualZero % alignof(Superblock) == 0);
     // ...initialize the system information...
     for (uint32_t k = 0; k < largePoolSizeLog + 2; k++) {
         for (uint32_t i = 0; i < largePoolSizeLog + 1; i++) {
