@@ -52,21 +52,18 @@ void MemoryPool::Deinitialize() {
 void* MemoryPool::Allocate(size_t n) {
     if (n > allocatorMaxSize)
         return nullptr;
-    mtx.lock();
-    void* ptr = allocateSuperblock(n);
-    mtx.unlock();
-    return ptr;
+    andi::lock_guard{ mtx };
+    return allocateSuperblock(n);
 }
 
 void MemoryPool::Deallocate(void* ptr) {
-    mtx.lock();
+    andi::lock_guard{ mtx };
     vassert((uintptr_t(ptr) % Constants::Alignment == 0)
         && "MemoryArena: Attempting to free a non-aligned pointer!");
     vassert(isValidSignature(fromUserAddress(ptr))
         && "MemoryArena: Pointer is either already freed or is not the one, returned to user!\n");
     Superblock* sblk = fromUserAddress(ptr);
     deallocateSuperblock(sblk);
-    mtx.unlock();
 }
 
 size_t MemoryPool::max_size() {

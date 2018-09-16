@@ -77,24 +77,22 @@ void SmallPool<N, Count>::Deinitialize() {
 
 template<size_t N, size_t Count>
 void* SmallPool<N, Count>::Allocate() {
-    mtx.lock();
-    if (headIdx == Constants::InvalidIdx) {
-        mtx.unlock();
+    andi::lock_guard{ mtx };
+    if (headIdx == Constants::InvalidIdx)
         return nullptr;
-    }
+
     size_t free = headIdx;
     headIdx = blocksPtr[free].next;
     ++allocatedBlocks;
 #if HPC_DEBUG == 1
     unsignFreeBlock(blocksPtr + free);
 #endif // HPC_DEBUG
-    mtx.unlock();
     return blocksPtr + free;
 }
 
 template<size_t N, size_t Count>
 void SmallPool<N, Count>::Deallocate(void* sblk) {
-    mtx.lock();
+    andi::lock_guard{ mtx };
     size_t idx = (Smallblock*)sblk - blocksPtr;
     vassert(uintptr_t(sblk) % Constants::Alignment == 0
         && "MemoryArena: Attempting to free a non-aligned pointer!");
@@ -106,7 +104,6 @@ void SmallPool<N, Count>::Deallocate(void* sblk) {
     --allocatedBlocks;
     blocksPtr[idx].next = headIdx;
     headIdx = idx;
-    mtx.unlock();
 }
 
 template<size_t N, size_t Count>

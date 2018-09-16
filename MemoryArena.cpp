@@ -5,9 +5,8 @@ MemoryArena MemoryArena::arena{};
 MemoryArena::MemoryArena() : _isInitialized(false) {}
 
 bool MemoryArena::Initialize() {
-    arena.initializationmtx.lock();
+    andi::lock_guard{ arena.initializationmtx };
     if (arena._isInitialized) {
-        arena.initializationmtx.unlock();
         vassert(false && "MemoryArena has already been initialized!");
         return false;
     }
@@ -26,14 +25,12 @@ bool MemoryArena::Initialize() {
     arena.largePool[1].Initialize();
     arena._isInitialized = true;
     UnlockAll();
-    arena.initializationmtx.unlock();
     return true;
 }
 
 bool MemoryArena::Deinitialize() {
-    arena.initializationmtx.lock();
+    andi::lock_guard{ arena.initializationmtx };
     if (!arena._isInitialized) {
-        arena.initializationmtx.unlock();
         vassert(false && "MemoryArena has already been deinitialized!");
         return false;
     }
@@ -52,7 +49,6 @@ bool MemoryArena::Deinitialize() {
     arena.largePool[1].Deinitialize();
     arena._isInitialized = false;
     UnlockAll();
-    arena.initializationmtx.unlock();
     return true;
 }
 
