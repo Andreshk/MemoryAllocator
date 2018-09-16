@@ -7,8 +7,8 @@ MemoryPool::MemoryPool() noexcept {
 void MemoryPool::Reset() noexcept {
     poolPtr = nullptr;
     virtualZero = 0;
-    for (uint32_t k = 0; k < largePoolSizeLog + 2; k++) {
-        for (uint32_t i = 0; i < largePoolSizeLog + 1; i++) {
+    for (uint32_t k = 0; k < Constants::K + 2; k++) {
+        for (uint32_t i = 0; i < Constants::K + 1; i++) {
             freeBlocks[k][i].prev = nullptr;
             freeBlocks[k][i].next = nullptr;
         }
@@ -18,16 +18,15 @@ void MemoryPool::Reset() noexcept {
 }
 
 void MemoryPool::Initialize() noexcept {
-    const size_t poolSize = size_t(1) << largePoolSizeLog;
     // Allocate the pool address space...
     // The extra space is needed for the header of the first block, so that
     // the user-returned address of the first block is aligned at 32 bytes.
-    poolPtr = (byte*)andi::aligned_malloc(poolSize + allocAlignment);
-    virtualZero = uintptr_t(poolPtr) + allocAlignment - headerSize;
+    poolPtr = (byte*)andi::aligned_malloc(Constants::BuddyAllocatorSize + Constants::Alignment);
+    virtualZero = uintptr_t(poolPtr) + Constants::Alignment - headerSize;
     //vassert(virtualZero % alignof(Superblock) == 0);
     // ...initialize the system information...
-    for (uint32_t k = 0; k < largePoolSizeLog + 2; k++) {
-        for (uint32_t i = 0; i < largePoolSizeLog + 1; i++) {
+    for (uint32_t k = 0; k < Constants::K + 2; k++) {
+        for (uint32_t i = 0; i < Constants::K + 1; i++) {
             freeBlocks[k][i].prev = &freeBlocks[k][i];
             freeBlocks[k][i].next = &freeBlocks[k][i];
             // no need to maintain free,k,i
@@ -38,7 +37,7 @@ void MemoryPool::Initialize() noexcept {
     // ... and add the initial Superblock
     Superblock* sblk = (Superblock*)virtualZero;
     sblk->free = 1;
-    sblk->k = largePoolSizeLog + 1;
+    sblk->k = Constants::K + 1;
 #if HPC_DEBUG == 1
     sign(sblk);
 #endif
@@ -59,10 +58,10 @@ void* MemoryPool::Allocate(size_t n) noexcept {
     return ptr;
 }
 
-void MemoryPool::Deallocate(void* ptr) noexcept(isRelease) {
+void MemoryPool::Deallocate(void* ptr) noexcept(Constants::IsRelease) {
     mtx.lock();
 #if HPC_DEBUG == 1
-    if (uintptr_t(ptr) % allocAlignment != 0) {
+    if (uintptr_t(ptr) % Constants::Alignment != 0) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: Attempting to free a non-aligned pointer!");
     } else if (!isValidSignature(fromUserAddress(ptr))) {
@@ -80,27 +79,27 @@ size_t MemoryPool::max_size() noexcept {
 }
 
 bool MemoryPool::isInside(void* ptr) const noexcept {
-    // The +allocAlignment here also compensates for the over-allocation for the first block's header
-    return ptr >= poolPtr && ptr < (poolPtr + largePoolSize + allocAlignment);
+    // The +Alignment here also compensates for the over-allocation for the first block's header
+    return ptr >= poolPtr && ptr < (poolPtr + Constants::BuddyAllocatorSize + Constants::Alignment);
 }
 
 void MemoryPool::printCondition() const {
     std::cout << "Pool address: 0x" << std::hex << (void*)poolPtr << std::dec << "\n";
-    std::cout << "Pool size:  " << largePoolSize << " bytes.\n";
+    std::cout << "Pool size:  " << Constants::BuddyAllocatorSize << " bytes.\n";
     std::cout << "Free superblocks of type (k,i):\n";
     size_t counter, free_space = 0;
-    for (uint32_t k = 0; k < largePoolSizeLog + 2; k++)
-    for (uint32_t i = 0; i < largePoolSizeLog + 1; i++) {
-        counter = 0;
-        const Superblock* headPtr = &freeBlocks[k][i];
-        for (const Superblock* ptr = headPtr->next; ptr != headPtr; ptr = ptr->next)
-            ++counter;
-        if (counter != 0)
-            std::cout << " (" << k << "," << i << "): " << counter << "\n";
-        free_space += counter * ((size_t(1) << k) - (size_t(1) << i));
+    for (uint32_t k = 0; k < Constants::K + 2; k++)
+        for (uint32_t i = 0; i < Constants::K + 1; i++) {
+            counter = 0;
+            const Superblock* headPtr = &freeBlocks[k][i];
+            for (const Superblock* ptr = headPtr->next; ptr != headPtr; ptr = ptr->next)
+                ++counter;
+            if (counter != 0)
+                std::cout << " (" << k << "," << i << "): " << counter << "\n";
+            free_space += counter * ((size_t(1) << k) - (size_t(1) << i));
     }
     std::cout << "Free space: " << free_space << " bytes.\n";
-    std::cout << "Used space: " << largePoolSize - free_space << " bytes.\n\n";
+    std::cout << "Used space: " << Constants::BuddyAllocatorSize - free_space << " bytes.\n\n";
 }
 
 #if HPC_DEBUG == 1
@@ -120,8 +119,8 @@ bool MemoryPool::isValidSignature(Superblock* sblk) noexcept {
      * the probability is multiplied by this number: 1 in 10^35, 1 на 10^53,
      * ...in general, practically zero just after the first run */ 
     return (sblk->free==0
-         && sblk->k > minBlockSizeLog
-         && sblk->k <= largePoolSizeLog + 1
+         && sblk->k > Constants::MinAllocationSizeLog
+         && sblk->k <= Constants::K + 1
          && sblk->signature == getSignature(sblk));
 }
 #endif // HPC_DEBUG
@@ -243,7 +242,7 @@ void MemoryPool::removeFreeSuperblock(Superblock* sblk) noexcept {
 
 Superblock* MemoryPool::findFreeSuperblock(uint32_t j) const noexcept {
     uint32_t min_i = 64, min_k = 0;
-    for (uint32_t k = j + 1; k < largePoolSizeLog + 2; k++)
+    for (uint32_t k = j + 1; k < Constants::K + 2; k++)
         if (leastSetBits[k] < min_i) {
             min_i = leastSetBits[k];
             min_k = k;
@@ -267,7 +266,7 @@ void MemoryPool::recursiveMerge(Superblock* sblk) noexcept {
     // Otherwise, the block is simply inserted to its corresponding
     // list, as a normal block of size 2^j for some j
     Superblock* buddy = findBuddySuperblock(sblk);
-    if ((uintptr_t(sblk) == virtualZero && sblk->k == largePoolSizeLog + 1) ||
+    if ((uintptr_t(sblk) == virtualZero && sblk->k == Constants::K + 1) ||
         buddy->free == 0 || calculateI(sblk) != calculateI(buddy)) {
 #if HPC_DEBUG == 1
         sign(sblk);
@@ -308,7 +307,7 @@ uint32_t MemoryPool::calculateI(Superblock* sblk) const noexcept {
 
 uint32_t MemoryPool::calculateJ(size_t n) noexcept {
     // this is a harmless cast iff allocatorMaxSize can fit in 32 bits
-    return max(fastlog2(uint32_t(n + headerSize - 1)) + 1, minBlockSizeLog);
+    return max(fastlog2(uint32_t(n + headerSize - 1)) + 1, Constants::MinAllocationSizeLog);
 }
 
 uint32_t min(uint32_t a, uint32_t b) { return (a < b) ? a : b; }

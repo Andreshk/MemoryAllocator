@@ -23,19 +23,17 @@ struct Superblock {
 };
 
 // Superblock header size, in bytes
-constexpr size_t   headerSize = offsetof(Superblock, prev); // fun fact: this causes undefined behaviour
-// Logarithm of the smallest block size, which can be allocated
-constexpr uint32_t minBlockSizeLog = 5;
+constexpr size_t headerSize = offsetof(Superblock, prev); // fun fact: this causes undefined behaviour
 // The upper limit for a single allocation
-constexpr size_t   allocatorMaxSize = (largePoolSize / 4) - headerSize;
+constexpr size_t allocatorMaxSize = (Constants::BuddyAllocatorSize / 4) - headerSize;
 
 // Sanity checks for global constants' validity
-static_assert(headerSize < allocAlignment);
-static_assert(alignof(Superblock) <= allocAlignment && (allocAlignment % alignof(Superblock)) == 0); // virtualZero should be a valid Superblock address
-static_assert(largePoolSizeLog <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
-static_assert(headerSize < (size_t(1) << minBlockSizeLog)); // otherwise headers overlap and mayhem ensues
-static_assert(minBlockSizeLog >= 5 && minBlockSizeLog <= largePoolSizeLog);
-static_assert(allocatorMaxSize < largePoolSize && allocatorMaxSize + headerSize - 1 < 0x100000000ui64);
+static_assert(headerSize < Constants::Alignment);
+static_assert(alignof(Superblock) <= Constants::Alignment && (Constants::Alignment % alignof(Superblock)) == 0); // virtualZero should be a valid Superblock address
+static_assert(Constants::K <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
+static_assert(headerSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
+static_assert(Constants::MinAllocationSizeLog >= 5 && Constants::MinAllocationSizeLog <= Constants::K);
+static_assert(allocatorMaxSize < Constants::BuddyAllocatorSize && allocatorMaxSize + headerSize - 1 < 0x100000000ui64);
 
 /*
  - The memory returned to the user is allocated from a large address space (pool)
@@ -62,9 +60,9 @@ class MemoryPool {
     using byte = uint8_t;
 
 private:
-    Superblock freeBlocks[largePoolSizeLog + 2][largePoolSizeLog + 1];
-    uint64_t bitvectors[largePoolSizeLog + 2];
-    uint32_t leastSetBits[largePoolSizeLog + 2];
+    Superblock freeBlocks[Constants::K + 2][Constants::K + 1];
+    uint64_t bitvectors[Constants::K + 2];
+    uint32_t leastSetBits[Constants::K + 2];
     byte* poolPtr;
     uintptr_t virtualZero;
     andi::mutex mtx;
@@ -75,7 +73,7 @@ private:
     void Deinitialize() noexcept;
 
     void* Allocate(size_t) noexcept;
-    void Deallocate(void*) noexcept(isRelease);
+    void Deallocate(void*) noexcept(Constants::IsRelease);
     static size_t max_size() noexcept;
     bool isInside(void*) const noexcept;
     void printCondition() const;

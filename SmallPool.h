@@ -6,8 +6,8 @@ class SmallPool {
     // forward declaration...
     friend class MemoryArena;
 
-    static_assert(N >= allocAlignment && !(N&(N - 1)),
-        "N has to be a power of two, no less than 32!");
+    static_assert(N >= Constants::Alignment && !(N&(N - 1)),
+        "N has to be a power of two, no less than the alignment requirement!");
     struct Smallblock {
         size_t next;
         size_t pad[N / sizeof(size_t) - 1];
@@ -24,7 +24,7 @@ class SmallPool {
     void Deinitialize() noexcept;
 
     void* Allocate() noexcept;
-    void Deallocate(void*) noexcept(isRelease);
+    void Deallocate(void*) noexcept(Constants::IsRelease);
     void printCondition() const;
     bool isInside(void*) const noexcept;
 #if HPC_DEBUG == 1
@@ -51,7 +51,7 @@ SmallPool<N, Count>::SmallPool() noexcept {
 template<size_t N, size_t Count>
 void SmallPool<N, Count>::Reset() noexcept {
     blocksPtr = nullptr;
-    headIdx = invalidIdx;
+    headIdx = Constants::InvalidIdx;
     allocatedBlocks = 0;
 }
 
@@ -64,7 +64,7 @@ void SmallPool<N, Count>::Initialize() noexcept {
         signFreeBlock(blocksPtr + i);
 #endif // HPC_DEBUG
     }
-    blocksPtr[Count - 1].next = invalidIdx;
+    blocksPtr[Count - 1].next = Constants::InvalidIdx;
     headIdx = 0;
     allocatedBlocks = 0;
 }
@@ -78,7 +78,7 @@ void SmallPool<N, Count>::Deinitialize() noexcept {
 template<size_t N, size_t Count>
 void* SmallPool<N, Count>::Allocate() noexcept {
     mtx.lock();
-    if (headIdx == invalidIdx) {
+    if (headIdx == Constants::InvalidIdx) {
         mtx.unlock();
         return nullptr;
     }
@@ -93,11 +93,11 @@ void* SmallPool<N, Count>::Allocate() noexcept {
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::Deallocate(void* sblk) noexcept(isRelease) {
+void SmallPool<N, Count>::Deallocate(void* sblk) noexcept(Constants::IsRelease) {
     mtx.lock();
     size_t idx = (Smallblock*)sblk - blocksPtr;
 #if HPC_DEBUG == 1
-    if (uintptr_t(sblk) % allocAlignment != 0) {
+    if (uintptr_t(sblk) % Constants::Alignment != 0) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: Attempting to free a non-aligned pointer!");
     } else if (isSigned((Smallblock*)sblk)) {

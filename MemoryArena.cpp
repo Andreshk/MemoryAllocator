@@ -4,7 +4,7 @@ MemoryArena MemoryArena::arena{};
 
 MemoryArena::MemoryArena() : _isInitialized(false) {}
 
-bool MemoryArena::Initialize() noexcept(isRelease) {
+bool MemoryArena::Initialize() noexcept(Constants::IsRelease) {
     arena.initializationmtx.lock();
     if (arena._isInitialized) {
         arena.initializationmtx.unlock();
@@ -32,7 +32,7 @@ bool MemoryArena::Initialize() noexcept(isRelease) {
     return true;
 }
 
-bool MemoryArena::Deinitialize() noexcept(isRelease) {
+bool MemoryArena::Deinitialize() noexcept(Constants::IsRelease) {
     arena.initializationmtx.lock();
     if (!arena._isInitialized) {
         arena.initializationmtx.unlock();
@@ -64,7 +64,7 @@ bool MemoryArena::isInitialized() noexcept {
     return arena._isInitialized;
 }
 
-void* MemoryArena::Allocate(size_t n) noexcept(isRelease) {
+void* MemoryArena::Allocate(size_t n) noexcept(Constants::IsRelease) {
     if (n == 0)
         return nullptr;
     void* ptr = nullptr;
@@ -99,7 +99,7 @@ void* MemoryArena::Allocate(size_t n) noexcept(isRelease) {
     return ptr;
 }
 
-void MemoryArena::Deallocate(void* ptr) noexcept(isRelease) {
+void MemoryArena::Deallocate(void* ptr) noexcept(Constants::IsRelease) {
     if (!ptr)
         return;
 

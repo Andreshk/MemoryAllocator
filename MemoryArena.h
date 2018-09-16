@@ -12,12 +12,12 @@ class MemoryArena {
     template<class> friend class andi::allocator;
 
 #if USE_SMALL_POOLS == 1
-    SmallPool<32, sizes[0]> tp0;
-    SmallPool<64, sizes[1]> tp1;
-    SmallPool<128, sizes[2]> tp2;
-    SmallPool<256, sizes[3]> tp3;
-    SmallPool<512, sizes[4]> tp4;
-    SmallPool<1024, sizes[5]> tp5;
+    SmallPool<  32, Constants::SmallPoolSize0> tp0;
+    SmallPool<  64, Constants::SmallPoolSize1> tp1;
+    SmallPool< 128, Constants::SmallPoolSize2> tp2;
+    SmallPool< 256, Constants::SmallPoolSize3> tp3;
+    SmallPool< 512, Constants::SmallPoolSize4> tp4;
+    SmallPool<1024, Constants::SmallPoolSize5> tp5;
 #endif // USE_SMALL_POOLS
 
     MemoryPool largePool[2];
@@ -41,11 +41,11 @@ public:
     MemoryArena(MemoryArena&&) = delete;
     MemoryArena& operator=(MemoryArena&&) = delete;
 
-    static bool Initialize() noexcept(isRelease);
-    static bool Deinitialize() noexcept(isRelease);
+    static bool Initialize() noexcept(Constants::IsRelease);
+    static bool Deinitialize() noexcept(Constants::IsRelease);
     static bool isInitialized() noexcept;
-    static void* Allocate(size_t) noexcept(isRelease);
-    static void Deallocate(void*) noexcept(isRelease);
+    static void* Allocate(size_t) noexcept(Constants::IsRelease);
+    static void Deallocate(void*) noexcept(Constants::IsRelease);
     // A very helpful methos to print the buddy allocator's state
     static void printCondition();
 };
