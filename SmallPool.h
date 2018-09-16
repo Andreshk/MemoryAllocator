@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Commons.h"
 
-template<size_t N>
+template<size_t N, size_t Count>
 class SmallPool {
     // forward declaration...
     friend class MemoryArena;
@@ -15,13 +15,12 @@ class SmallPool {
 
     Smallblock* blocksPtr;
     size_t headIdx;
-    size_t blockCount; // can be const
     size_t allocatedBlocks;
     andi::mutex mtx;
 
     SmallPool() noexcept; // no destructor, we rely on Deinitialize
     void Reset() noexcept;
-    void Initialize(size_t) noexcept;
+    void Initialize() noexcept;
     void Deinitialize() noexcept;
 
     void* Allocate() noexcept;
@@ -44,42 +43,40 @@ public:
     SmallPool& operator=(SmallPool&&) = delete;
 };
 
-template<size_t N>
-SmallPool<N>::SmallPool() noexcept {
+template<size_t N, size_t Count>
+SmallPool<N, Count>::SmallPool() noexcept {
     Reset();
 }
 
-template<size_t N>
-void SmallPool<N>::Reset() noexcept {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::Reset() noexcept {
     blocksPtr = nullptr;
-    headIdx = 0;
-    blockCount = 0;
+    headIdx = invalidIdx;
     allocatedBlocks = 0;
 }
 
-template<size_t N>
-void SmallPool<N>::Initialize(size_t count) noexcept {
-    blocksPtr = (Smallblock*)andi::aligned_malloc(N*count, 32);
-    for (size_t i = 0; i < count; i++) {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::Initialize() noexcept {
+    blocksPtr = (Smallblock*)andi::aligned_malloc(N*Count, 32);
+    for (size_t i = 0; i < Count; i++) {
         blocksPtr[i].next = i + 1;
 #if HPC_DEBUG == 1
         signFreeBlock(blocksPtr + i);
 #endif // HPC_DEBUG
     }
-    blocksPtr[count - 1].next = invalidIdx;
+    blocksPtr[Count - 1].next = invalidIdx;
     headIdx = 0;
-    blockCount = count;
     allocatedBlocks = 0;
 }
 
-template<size_t N>
-void SmallPool<N>::Deinitialize() noexcept {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::Deinitialize() noexcept {
     andi::aligned_free(blocksPtr);
     Reset();
 }
 
-template<size_t N>
-void* SmallPool<N>::Allocate() noexcept {
+template<size_t N, size_t Count>
+void* SmallPool<N, Count>::Allocate() noexcept {
     mtx.lock();
     if (headIdx == invalidIdx) {
         mtx.unlock();
@@ -95,12 +92,15 @@ void* SmallPool<N>::Allocate() noexcept {
     return blocksPtr + free;
 }
 
-template<size_t N>
-void SmallPool<N>::Deallocate(void* sblk) noexcept(isRelease) {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::Deallocate(void* sblk) noexcept(isRelease) {
     mtx.lock();
     size_t idx = (Smallblock*)sblk - blocksPtr;
 #if HPC_DEBUG == 1
-    if (isSigned((Smallblock*)ptr)) {
+    if (uintptr_t(sblk) % 32 != 0) {
+        mtx.unlock();
+        throw std::runtime_error("MemoryArena: Attempting to free a non-aligned pointer!");
+    } else if (isSigned((Smallblock*)sblk)) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: attempting to free memory that has already been freed!\n");
     }
@@ -112,37 +112,37 @@ void SmallPool<N>::Deallocate(void* sblk) noexcept(isRelease) {
     mtx.unlock();
 }
 
-template<size_t N>
-void SmallPool<N>::printCondition() const {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::printCondition() const {
     std::cout << "SmallPool<" << N << ">:\n"
-        << "  pool size:  " << blockCount * N << " bytes (" << blockCount << " blocks)\n"
-        << "  free space: " << (blockCount - allocatedBlocks)*N << " bytes (" << blockCount - allocatedBlocks << " blocks)\n"
+        << "  pool size:  " << Count * N << " bytes (" << Count << " blocks)\n"
+        << "  free space: " << (Count - allocatedBlocks)*N << " bytes (" << Count - allocatedBlocks << " blocks)\n"
         << "  used space: " << allocatedBlocks*N << " bytes (" << allocatedBlocks << " blocks)\n\n";
 }
 
-template<size_t N>
-bool SmallPool<N>::isInside(void* ptr) const noexcept {
-    return ptr >= blocksPtr && ptr < (blocksPtr + blockCount);
+template<size_t N, size_t Count>
+bool SmallPool<N, Count>::isInside(void* ptr) const noexcept {
+    return ptr >= blocksPtr && ptr < (blocksPtr + Count);
 }
 
 #if HPC_DEBUG == 1
-template<size_t N>
-void SmallPool<N>::signFreeBlock(Smallblock* ptr) noexcept {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::signFreeBlock(Smallblock* ptr) noexcept {
     ptr->pad[0] = getSignature(ptr);
 }
 
-template<size_t N>
-void SmallPool<N>::unsignFreeBlock(Smallblock* ptr) noexcept {
+template<size_t N, size_t Count>
+void SmallPool<N, Count>::unsignFreeBlock(Smallblock* ptr) noexcept {
     ptr->pad[0] = 0;
 }
 
-template<size_t N>
-size_t SmallPool<N>::getSignature(Smallblock* ptr) noexcept {
+template<size_t N, size_t Count>
+size_t SmallPool<N, Count>::getSignature(Smallblock* ptr) noexcept {
     return ~size_t(ptr);
 }
 
-template<size_t N>
-bool SmallPool<N>::isSigned(Smallblock* ptr) noexcept {
+template<size_t N, size_t Count>
+bool SmallPool<N, Count>::isSigned(Smallblock* ptr) noexcept {
     // There is a 1 in 2^64 chance of a false positive,
     // decreasing exponentially every time the program is ran.
     return (ptr->pad[0] == getSignature(ptr));

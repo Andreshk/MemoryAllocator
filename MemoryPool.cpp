@@ -20,13 +20,13 @@ void MemoryPool::Reset() noexcept {
 void MemoryPool::Initialize() noexcept {
     const size_t poolSize = size_t(1) << largePoolSizeLog;
     // Allocate the pool address space...
+    // The extra space is needed for the header of the first block, so that
+    // the user-returned address of the first block is aligned at 32 bytes.
     poolPtr = (byte*)andi::aligned_malloc(poolSize + 32, 32);
     virtualZero = uintptr_t(poolPtr) + 32 - headerSize;
     // ...initialize the system information...
-    for (uint32_t k = 0; k < largePoolSizeLog + 2; k++)
-    {
-        for (uint32_t i = 0; i < largePoolSizeLog + 1; i++)
-        {
+    for (uint32_t k = 0; k < largePoolSizeLog + 2; k++) {
+        for (uint32_t i = 0; i < largePoolSizeLog + 1; i++) {
             freeBlocks[k][i].prev = &freeBlocks[k][i];
             freeBlocks[k][i].next = &freeBlocks[k][i];
             // no need to maintain free,k,i
@@ -61,7 +61,10 @@ void* MemoryPool::Allocate(size_t n) noexcept {
 void MemoryPool::Deallocate(void* ptr) noexcept(isRelease) {
     mtx.lock();
 #if HPC_DEBUG == 1
-    if (!isValidSignature(fromUserAddress(ptr))) {
+    if (uintptr_t(ptr) % 32 != 0) {
+        mtx.unlock();
+        throw std::runtime_error("MemoryArena: Attempting to free a non-aligned pointer!");
+    } else if (!isValidSignature(fromUserAddress(ptr))) {
         mtx.unlock();
         throw std::runtime_error("MemoryArena: Pointer is either already freed or is not the one, returned to user!\n");
     }
@@ -76,6 +79,7 @@ size_t MemoryPool::max_size() noexcept {
 }
 
 bool MemoryPool::isInside(void* ptr) const noexcept {
+    // The +32 here also compensates for the over-allocation for the first block's header
     return ptr >= poolPtr && ptr < (poolPtr + largePoolSize + 32);
 }
 

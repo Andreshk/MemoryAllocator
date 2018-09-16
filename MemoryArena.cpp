@@ -16,12 +16,12 @@ bool MemoryArena::Initialize() noexcept(isRelease) {
     LockAll();
 
 #if USE_SMALL_POOLS == 1
-    arena.tp0.Initialize(sizes[0]);
-    arena.tp1.Initialize(sizes[1]);
-    arena.tp2.Initialize(sizes[2]);
-    arena.tp3.Initialize(sizes[3]);
-    arena.tp4.Initialize(sizes[4]);
-    arena.tp5.Initialize(sizes[5]);
+    arena.tp0.Initialize();
+    arena.tp1.Initialize();
+    arena.tp2.Initialize();
+    arena.tp3.Initialize();
+    arena.tp4.Initialize();
+    arena.tp5.Initialize();
 #endif // USE_SMALL_POOLS
     
     arena.largePool[0].Initialize();

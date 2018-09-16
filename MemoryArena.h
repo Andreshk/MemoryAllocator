@@ -12,12 +12,12 @@ class MemoryArena {
     template<class> friend class andi::allocator;
 
 #if USE_SMALL_POOLS == 1
-    SmallPool<32> tp0;
-    SmallPool<64> tp1;
-    SmallPool<128> tp2;
-    SmallPool<256> tp3;
-    SmallPool<512> tp4;
-    SmallPool<1024> tp5;
+    SmallPool<32, sizes[0]> tp0;
+    SmallPool<64, sizes[1]> tp1;
+    SmallPool<128, sizes[2]> tp2;
+    SmallPool<256, sizes[3]> tp3;
+    SmallPool<512, sizes[4]> tp4;
+    SmallPool<1024, sizes[5]> tp5;
 #endif // USE_SMALL_POOLS
 
     std::atomic_uint32_t toggle;
