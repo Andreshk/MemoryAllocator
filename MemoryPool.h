@@ -29,11 +29,13 @@ constexpr size_t allocatorMaxSize = (Constants::BuddyAllocatorSize / 4) - header
 
 // Sanity checks for global constants' validity
 static_assert(headerSize < Constants::Alignment);
-static_assert(alignof(Superblock) <= Constants::Alignment && (Constants::Alignment % alignof(Superblock)) == 0); // virtualZero should be a valid Superblock address
+static_assert(Constants::Alignment % alignof(Superblock) == 0); // virtualZero should be a valid Superblock address
 static_assert(Constants::K <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
 static_assert(headerSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
-static_assert(Constants::MinAllocationSizeLog >= 5 && Constants::MinAllocationSizeLog <= Constants::K);
-static_assert(allocatorMaxSize < Constants::BuddyAllocatorSize && allocatorMaxSize + headerSize - 1 < 0x100000000ui64);
+static_assert(Constants::MinAllocationSizeLog >= 5
+           && Constants::MinAllocationSizeLog <= Constants::K);
+static_assert(allocatorMaxSize < Constants::BuddyAllocatorSize
+           && allocatorMaxSize + headerSize - 1 < 0x1'0000'0000ui64);
 
 /*
  - The memory returned to the user is allocated from a large address space (pool)
@@ -67,35 +69,35 @@ private:
     uintptr_t virtualZero;
     andi::mutex mtx;
 
-    MemoryPool() noexcept; // no destructor, we rely on Deinitialize
-    void Reset() noexcept;
-    void Initialize() noexcept;
-    void Deinitialize() noexcept;
+    MemoryPool(); // no destructor, we rely on Deinitialize
+    void Reset();
+    void Initialize();
+    void Deinitialize();
 
-    void* Allocate(size_t) noexcept;
-    void Deallocate(void*) noexcept(Constants::IsRelease);
-    static size_t max_size() noexcept;
-    bool isInside(void*) const noexcept;
+    void* Allocate(size_t);
+    void Deallocate(void*);
+    static size_t max_size();
+    bool isInside(void*) const;
     void printCondition() const;
 #if HPC_DEBUG == 1
-    static void sign(Superblock*) noexcept;
-    static uint32_t getSignature(Superblock*) noexcept;
-    static bool isValidSignature(Superblock*) noexcept;
+    static void sign(Superblock*);
+    static uint32_t getSignature(Superblock*);
+    static bool isValidSignature(Superblock*);
 #endif // HPC_DEBUG
 
-    void* allocateSuperblock(size_t) noexcept;
-    void deallocateSuperblock(Superblock*) noexcept;
-    void insertFreeSuperblock(Superblock*) noexcept;
-    void removeFreeSuperblock(Superblock*) noexcept;
-    Superblock* findFreeSuperblock(uint32_t) const noexcept;
-    Superblock* findBuddySuperblock(Superblock*) const noexcept;
-    void recursiveMerge(Superblock*) noexcept;
-    static void* toUserAddress(Superblock*) noexcept;
-    static Superblock* fromUserAddress(void*) noexcept;
-    uintptr_t toVirtualOffset(Superblock*) const noexcept;
-    Superblock* fromVirtualOffset(uintptr_t) const noexcept;
-    uint32_t calculateI(Superblock*) const noexcept;
-    static uint32_t calculateJ(size_t) noexcept;
+    void* allocateSuperblock(size_t);
+    void deallocateSuperblock(Superblock*);
+    void insertFreeSuperblock(Superblock*);
+    void removeFreeSuperblock(Superblock*);
+    Superblock* findFreeSuperblock(uint32_t) const;
+    Superblock* findBuddySuperblock(Superblock*) const;
+    void recursiveMerge(Superblock*);
+    static void* toUserAddress(Superblock*);
+    static Superblock* fromUserAddress(void*);
+    uintptr_t toVirtualOffset(Superblock*) const;
+    Superblock* fromVirtualOffset(uintptr_t) const;
+    uint32_t calculateI(Superblock*) const;
+    static uint32_t calculateJ(size_t);
 
 public:
     // moving or copying of pools is forbidden

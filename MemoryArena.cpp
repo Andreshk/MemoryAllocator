@@ -4,13 +4,11 @@ MemoryArena MemoryArena::arena{};
 
 MemoryArena::MemoryArena() : _isInitialized(false) {}
 
-bool MemoryArena::Initialize() noexcept(Constants::IsRelease) {
+bool MemoryArena::Initialize() {
     arena.initializationmtx.lock();
     if (arena._isInitialized) {
         arena.initializationmtx.unlock();
-#if HPC_DEBUG == 1
-        throw std::runtime_error("MemoryArena has already been initialized!");
-#endif // HPC_DEBUG
+        vassert(false && "MemoryArena has already been initialized!");
         return false;
     }
     LockAll();
@@ -32,13 +30,11 @@ bool MemoryArena::Initialize() noexcept(Constants::IsRelease) {
     return true;
 }
 
-bool MemoryArena::Deinitialize() noexcept(Constants::IsRelease) {
+bool MemoryArena::Deinitialize() {
     arena.initializationmtx.lock();
     if (!arena._isInitialized) {
         arena.initializationmtx.unlock();
-#if HPC_DEBUG == 1
-        throw std::runtime_error("MemoryArena has already been deinitialized!");
-#endif // HPC_DEBUG
+        vassert(false && "MemoryArena has already been deinitialized!");
         return false;
     }
     LockAll();
@@ -60,20 +56,16 @@ bool MemoryArena::Deinitialize() noexcept(Constants::IsRelease) {
     return true;
 }
 
-bool MemoryArena::isInitialized() noexcept {
+bool MemoryArena::isInitialized() {
     return arena._isInitialized;
 }
 
-void* MemoryArena::Allocate(size_t n) noexcept(Constants::IsRelease) {
+void* MemoryArena::Allocate(size_t n) {
     if (n == 0)
         return nullptr;
+    vassert(arena._isInitialized && "MemoryArena must be initialized before allocation!\n");
+
     void* ptr = nullptr;
-
-#if HPC_DEBUG == 1
-    if (!arena._isInitialized)
-        throw std::runtime_error("MemoryArena must be initialized before allocation!\n");
-#endif // HPC_DEBUG
-
 #if USE_SMALL_POOLS == 0
     const uint32_t idx = arena.toggle.fetch_add(1) & 1;
     ptr = arena.largePool[idx].Allocate(n);
@@ -99,16 +91,11 @@ void* MemoryArena::Allocate(size_t n) noexcept(Constants::IsRelease) {
     return ptr;
 }
 
-void MemoryArena::Deallocate(void* ptr) noexcept(Constants::IsRelease) {
+void MemoryArena::Deallocate(void* ptr) {
     if (!ptr)
         return;
-
-#if HPC_DEBUG == 1
-    if (!arena._isInitialized)
-        throw std::runtime_error("MemoryArena must be initialized before deallocation!\n");
-    if (!arena.isInside(ptr))
-        throw std::runtime_error("MemoryArena: pointer is outside of the address space!\n");
-#endif // HPC_DEBUG
+    vassert(arena._isInitialized && "MemoryArena must be initialized before deallocation!\n");
+    vassert(arena.isInside(ptr) && "MemoryArena: pointer is outside of the address space!\n");
 
 #if USE_SMALL_POOLS == 0
     if (arena.largePool[0].isInside(ptr))
@@ -149,11 +136,11 @@ void MemoryArena::printCondition() {
     arena.largePool[1].printCondition();
 }
 
-size_t MemoryArena::max_size() noexcept {
+size_t MemoryArena::max_size() {
     return MemoryPool::max_size();
 }
 
-void MemoryArena::LockAll() noexcept {
+void MemoryArena::LockAll() {
 #if USE_SMALL_POOLS == 1
     arena.tp0.mtx.lock();
     arena.tp1.mtx.lock();
@@ -167,7 +154,7 @@ void MemoryArena::LockAll() noexcept {
     arena.largePool[1].mtx.lock();
 }
 
-void MemoryArena::UnlockAll() noexcept {
+void MemoryArena::UnlockAll() {
 #if USE_SMALL_POOLS == 1
     arena.tp0.mtx.unlock();
     arena.tp1.mtx.unlock();
@@ -181,7 +168,7 @@ void MemoryArena::UnlockAll() noexcept {
     arena.largePool[1].mtx.unlock();
 }
 
-bool MemoryArena::isInside(void* ptr) noexcept {
+bool MemoryArena::isInside(void* ptr) {
 #if USE_SMALL_POOLS == 0
     return (arena.largePool[0].isInside(ptr) || arena.largePool[1].isInside(ptr));
 #else

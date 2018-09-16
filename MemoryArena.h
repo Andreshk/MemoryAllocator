@@ -29,10 +29,10 @@ class MemoryArena {
     static MemoryArena arena;
 
     MemoryArena();
-    static size_t max_size() noexcept;
-    static void LockAll() noexcept;
-    static void UnlockAll() noexcept;
-    static bool isInside(void*) noexcept;
+    static size_t max_size();
+    static void LockAll();
+    static void UnlockAll();
+    static bool isInside(void*);
 
 public:
     // moving or copying of arenas is forbidden
@@ -41,11 +41,11 @@ public:
     MemoryArena(MemoryArena&&) = delete;
     MemoryArena& operator=(MemoryArena&&) = delete;
 
-    static bool Initialize() noexcept(Constants::IsRelease);
-    static bool Deinitialize() noexcept(Constants::IsRelease);
-    static bool isInitialized() noexcept;
-    static void* Allocate(size_t) noexcept(Constants::IsRelease);
-    static void Deallocate(void*) noexcept(Constants::IsRelease);
+    static bool Initialize();
+    static bool Deinitialize();
+    static bool isInitialized();
+    static void* Allocate(size_t);
+    static void Deallocate(void*);
     // A very helpful methos to print the buddy allocator's state
     static void printCondition();
 };

@@ -1,6 +1,6 @@
 ﻿#include "Commons.h"
 
-void* andi::aligned_malloc(size_t size) noexcept {
+void* andi::aligned_malloc(size_t size) {
 #if defined(_MSC_VER)
     return _aligned_malloc(size, Constants::Alignment);
 #else
@@ -10,7 +10,7 @@ void* andi::aligned_malloc(size_t size) noexcept {
 #endif
 }
 
-void andi::aligned_free(void* ptr) noexcept {
+void andi::aligned_free(void* ptr) {
 #if defined(_MSC_VER)
     _aligned_free(ptr);
 #else
@@ -18,14 +18,10 @@ void andi::aligned_free(void* ptr) noexcept {
 #endif
 }
 
-void andi::mutex::lock() noexcept {
-    bool isLocked = false;
-    while (!locked.compare_exchange_strong(isLocked, true))
-        isLocked = false;
+#if HPC_DEBUG == 1
+void andi::vassert_impl(const char* expr, const char* file, const unsigned line) {
+    // iei
 }
-
-void andi::mutex::unlock() noexcept {
-    locked = false;
-}
+#endif // HPC_DEBUG
 
 // iei
