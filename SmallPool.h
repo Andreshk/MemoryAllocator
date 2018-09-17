@@ -116,7 +116,7 @@ void SmallPool<N, Count>::printCondition() const {
 
 template<size_t N, size_t Count>
 bool SmallPool<N, Count>::isInside(void* ptr) const {
-    return ptr >= blocksPtr && ptr < (blocksPtr + Count);
+    return ptr >= blocksPtr && ptr < (blocksPtr + N*Count);
 }
 
 #if HPC_DEBUG == 1
