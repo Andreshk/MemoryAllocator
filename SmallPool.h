@@ -57,6 +57,7 @@ void SmallPool<N, Count>::Reset() {
 
 template<size_t N, size_t Count>
 void SmallPool<N, Count>::Initialize() {
+    andi::lock_guard lock{ mtx };
     blocksPtr = (Smallblock*)andi::aligned_malloc(N*Count);
     for (size_t i = 0; i < Count; i++) {
         blocksPtr[i].next = i + 1;
@@ -71,6 +72,7 @@ void SmallPool<N, Count>::Initialize() {
 
 template<size_t N, size_t Count>
 void SmallPool<N, Count>::Deinitialize() {
+    andi::lock_guard lock{ mtx };
     andi::aligned_free(blocksPtr);
     Reset();
 }

@@ -10,7 +10,6 @@ bool MemoryArena::Initialize() {
         vassert(false && "MemoryArena has already been initialized!");
         return false;
     }
-    LockAll();
 
 #if USE_SMALL_POOLS == 1
     arena.tp0.Initialize();
@@ -24,7 +23,6 @@ bool MemoryArena::Initialize() {
     arena.largePool[0].Initialize();
     arena.largePool[1].Initialize();
     arena._isInitialized = true;
-    UnlockAll();
     return true;
 }
 
@@ -34,7 +32,6 @@ bool MemoryArena::Deinitialize() {
         vassert(false && "MemoryArena has already been deinitialized!");
         return false;
     }
-    LockAll();
 
 #if USE_SMALL_POOLS == 1
     arena.tp0.Deinitialize();
@@ -48,7 +45,6 @@ bool MemoryArena::Deinitialize() {
     arena.largePool[0].Deinitialize();
     arena.largePool[1].Deinitialize();
     arena._isInitialized = false;
-    UnlockAll();
     return true;
 }
 
@@ -129,34 +125,6 @@ void MemoryArena::printCondition() {
 
 size_t MemoryArena::max_size() {
     return MemoryPool::max_size();
-}
-
-void MemoryArena::LockAll() {
-#if USE_SMALL_POOLS == 1
-    arena.tp0.mtx.lock();
-    arena.tp1.mtx.lock();
-    arena.tp2.mtx.lock();
-    arena.tp3.mtx.lock();
-    arena.tp4.mtx.lock();
-    arena.tp5.mtx.lock();
-#endif // USE_SMALL_POOLS
-    
-    arena.largePool[0].mtx.lock();
-    arena.largePool[1].mtx.lock();
-}
-
-void MemoryArena::UnlockAll() {
-#if USE_SMALL_POOLS == 1
-    arena.tp0.mtx.unlock();
-    arena.tp1.mtx.unlock();
-    arena.tp2.mtx.unlock();
-    arena.tp3.mtx.unlock();
-    arena.tp4.mtx.unlock();
-    arena.tp5.mtx.unlock();
-#endif // USE_SMALL_POOLS
-    
-    arena.largePool[0].mtx.unlock();
-    arena.largePool[1].mtx.unlock();
 }
 
 bool MemoryArena::isInside(void* ptr) {

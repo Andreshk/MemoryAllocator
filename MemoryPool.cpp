@@ -18,6 +18,7 @@ void MemoryPool::Reset() {
 }
 
 void MemoryPool::Initialize() {
+    andi::lock_guard lock{ mtx };
     // Allocate the pool address space...
     // The extra space is needed for the header of the first block, so that
     // the user-returned address of the first block is aligned at 32 bytes.
@@ -45,6 +46,7 @@ void MemoryPool::Initialize() {
 }
 
 void MemoryPool::Deinitialize() {
+    andi::lock_guard lock{ mtx };
     andi::aligned_free(poolPtr);
     Reset();
 }
