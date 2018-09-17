@@ -21,9 +21,9 @@ class MemoryArena {
 #endif // USE_SMALL_POOLS
 
     MemoryPool largePool[2];
-    std::atomic_uint32_t toggle;
+    std::atomic<uint32_t> toggle;
     andi::mutex initializationmtx;
-    bool _isInitialized;
+    std::atomic<bool> _isInitialized;
 
     // look-up "static initialization fiasco"
     static MemoryArena arena;

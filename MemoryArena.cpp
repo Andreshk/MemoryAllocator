@@ -62,10 +62,7 @@ void* MemoryArena::Allocate(size_t n) {
     vassert(arena._isInitialized && "MemoryArena must be initialized before allocation!\n");
 
     void* ptr = nullptr;
-#if USE_SMALL_POOLS == 0
-    const uint32_t idx = arena.toggle.fetch_add(1) & 1;
-    ptr = arena.largePool[idx].Allocate(n);
-#else
+#if USE_SMALL_POOLS == 1
     if (n <= 32)
         ptr = arena.tp0.Allocate();
     else if (n <= 64)
@@ -80,8 +77,10 @@ void* MemoryArena::Allocate(size_t n) {
         ptr = arena.tp5.Allocate();
     // In case allocation has been unsuccessful due to a full memory pool
     if (ptr == nullptr) {
+#endif // USE_SMALL_POOLS
         const uint32_t idx = arena.toggle.fetch_add(1) & 1;
         ptr = arena.largePool[idx].Allocate(n);
+#if USE_SMALL_POOLS == 1
     }
 #endif // USE_SMALL_POOLS
     return ptr;
@@ -93,12 +92,7 @@ void MemoryArena::Deallocate(void* ptr) {
     vassert(arena._isInitialized && "MemoryArena must be initialized before deallocation!\n");
     vassert(arena.isInside(ptr) && "MemoryArena: pointer is outside of the address space!\n");
 
-#if USE_SMALL_POOLS == 0
-    if (arena.largePool[0].isInside(ptr))
-        arena.largePool[0].Deallocate(ptr);
-    else
-        arena.largePool[1].Deallocate(ptr);
-#else
+#if USE_SMALL_POOLS == 1
     if (arena.tp0.isInside(ptr))
         arena.tp0.Deallocate(ptr);
     else if (arena.tp1.isInside(ptr))
@@ -111,11 +105,12 @@ void MemoryArena::Deallocate(void* ptr) {
         arena.tp4.Deallocate(ptr);
     else if (arena.tp5.isInside(ptr))
         arena.tp5.Deallocate(ptr);
-    else if (arena.largePool[0].isInside(ptr))
+    else
+#endif // USE_SMALL_POOLS
+    if (arena.largePool[0].isInside(ptr))
         arena.largePool[0].Deallocate(ptr);
     else
         arena.largePool[1].Deallocate(ptr);
-#endif // USE_SMALL_POOLS && USE_TEMPL_POOLS
 }
 
 void MemoryArena::printCondition() {
@@ -165,14 +160,13 @@ void MemoryArena::UnlockAll() {
 }
 
 bool MemoryArena::isInside(void* ptr) {
-#if USE_SMALL_POOLS == 0
-    return (arena.largePool[0].isInside(ptr) || arena.largePool[1].isInside(ptr));
-#else
-    return (arena.tp0.isInside(ptr) || arena.tp1.isInside(ptr) ||
+    return (
+#if USE_SMALL_POOLS == 1
+            arena.tp0.isInside(ptr) || arena.tp1.isInside(ptr) ||
             arena.tp2.isInside(ptr) || arena.tp3.isInside(ptr) ||
             arena.tp4.isInside(ptr) || arena.tp5.isInside(ptr) ||
+#endif // USE_SMALL_POOLS
             arena.largePool[0].isInside(ptr) || arena.largePool[1].isInside(ptr));
-#endif // USE_SMALL_POOLS && USE_TEMPL_POOLS
 }
 
 // iei
