@@ -77,7 +77,7 @@ void SmallPool<N, Count>::Deinitialize() {
 
 template<size_t N, size_t Count>
 void* SmallPool<N, Count>::Allocate() {
-    andi::lock_guard{ mtx };
+    andi::lock_guard lock{ mtx };
     if (headIdx == Constants::InvalidIdx)
         return nullptr;
 
@@ -92,7 +92,7 @@ void* SmallPool<N, Count>::Allocate() {
 
 template<size_t N, size_t Count>
 void SmallPool<N, Count>::Deallocate(void* sblk) {
-    andi::lock_guard{ mtx };
+    andi::lock_guard lock{ mtx };
     size_t idx = (Smallblock*)sblk - blocksPtr;
     vassert(uintptr_t(sblk) % Constants::Alignment == 0
         && "MemoryArena: Attempting to free a non-aligned pointer!");

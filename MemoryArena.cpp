@@ -5,7 +5,7 @@ MemoryArena MemoryArena::arena{};
 MemoryArena::MemoryArena() : _isInitialized(false) {}
 
 bool MemoryArena::Initialize() {
-    andi::lock_guard{ arena.initializationmtx };
+    andi::lock_guard lock{ arena.initializationmtx };
     if (arena._isInitialized) {
         vassert(false && "MemoryArena has already been initialized!");
         return false;
@@ -29,7 +29,7 @@ bool MemoryArena::Initialize() {
 }
 
 bool MemoryArena::Deinitialize() {
-    andi::lock_guard{ arena.initializationmtx };
+    andi::lock_guard lock{ arena.initializationmtx };
     if (!arena._isInitialized) {
         vassert(false && "MemoryArena has already been deinitialized!");
         return false;
