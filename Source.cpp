@@ -10,13 +10,12 @@
 #include <random>
 
 /* TO-DO:
+ - move Superblock somewhere to access the header size in Constants
  - fix comments about false positive probability
- - remove "+32" magical constant in MemoryPool::isInside()
- - rearrange member data by size
  - rename MemoryPool -> BuddyAllocator
  - rename mutex to spin-lock
  - split Commons into Defines & Utilities and move stuff there (math, benchmarking, mutex)
- - implement vassert() & remove exceptions
+ - implement vassert()
  - make an Allocator interface
  - make minimal andi::allocator (Bob Steagall 2017, 43:56)
  - simplify time measurement (A chrono tutorial, 50:03)
@@ -53,7 +52,8 @@ int main() {
     // 1 thread: up to ~70% faster
     // 4 threads: up to ~40%
     std::vector<std::thread> ths;
-    for (int i = 0; i < 1; i++) // change the loop limit to change the # of threads running in parallel (obviously)
+    const int nthreads = 4; // the # of threads running in parallel
+    for (int i = 0; i < nthreads; i++)
         ths.emplace_back(testRandomStringAllocation, 25, 500000, 20, 1000);
 
     for (auto& th : ths)
@@ -85,11 +85,10 @@ void testRandomStringAllocation(size_t _Repetitions, size_t _nStrings, size_t _M
               singleTestTimer<std::allocator>(lengths) };
     }
 
-    coutmtx.lock();
+    andi::lock_guard lock{ coutmtx };
     std::cout << "Testing " << _nStrings << " string allocations and ~" << _nStrings / 4 << " reallocations...\n";
     std::cout << "String length between " << _MinLength << " and " << _MaxLength << ".\n";
     printTestResults(times);
-    coutmtx.unlock();
 }
 
 template<template<class> class Allocator>
