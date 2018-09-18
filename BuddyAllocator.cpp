@@ -1,10 +1,10 @@
-﻿#include "MemoryPool.h"
+#include "BuddyAllocator.h"
 
-MemoryPool::MemoryPool() {
+BuddyAllocator::BuddyAllocator() {
     Reset();
 }
 
-void MemoryPool::Reset() {
+void BuddyAllocator::Reset() {
     poolPtr = nullptr;
     virtualZero = 0;
     for (uint32_t k = 0; k < Constants::K + 2; k++) {
@@ -17,7 +17,7 @@ void MemoryPool::Reset() {
     }
 }
 
-void MemoryPool::Initialize() {
+void BuddyAllocator::Initialize() {
     andi::lock_guard lock{ mtx };
     // Allocate the pool address space...
     // The extra space is needed for the header of the first block, so that
@@ -45,20 +45,20 @@ void MemoryPool::Initialize() {
     insertFreeSuperblock(sblk);
 }
 
-void MemoryPool::Deinitialize() {
+void BuddyAllocator::Deinitialize() {
     andi::lock_guard lock{ mtx };
     andi::aligned_free(poolPtr);
     Reset();
 }
 
-void* MemoryPool::Allocate(size_t n) {
+void* BuddyAllocator::Allocate(size_t n) {
     if (n > allocatorMaxSize)
         return nullptr;
     andi::lock_guard lock{ mtx };
     return allocateSuperblock(n);
 }
 
-void MemoryPool::Deallocate(void* ptr) {
+void BuddyAllocator::Deallocate(void* ptr) {
     andi::lock_guard lock{ mtx };
     vassert((uintptr_t(ptr) % Constants::Alignment == 0)
         && "MemoryArena: Attempting to free a non-aligned pointer!");
@@ -68,16 +68,16 @@ void MemoryPool::Deallocate(void* ptr) {
     deallocateSuperblock(sblk);
 }
 
-size_t MemoryPool::max_size() {
+size_t BuddyAllocator::max_size() {
     return allocatorMaxSize;
 }
 
-bool MemoryPool::isInside(void* ptr) const {
+bool BuddyAllocator::isInside(void* ptr) const {
     // The +Alignment here also compensates for the over-allocation for the first block's header
     return ptr >= poolPtr && ptr < (poolPtr + Constants::BuddyAllocatorSize + Constants::Alignment);
 }
 
-void MemoryPool::printCondition() const {
+void BuddyAllocator::printCondition() const {
     std::cout << "Pool address: 0x" << std::hex << (void*)poolPtr << std::dec << "\n";
     std::cout << "Pool size:  " << Constants::BuddyAllocatorSize << " bytes.\n";
     std::cout << "Free superblocks of type (k,i):\n";
@@ -97,15 +97,15 @@ void MemoryPool::printCondition() const {
 }
 
 #if HPC_DEBUG == 1
-void MemoryPool::sign(Superblock* sblk) {
+void BuddyAllocator::sign(Superblock* sblk) {
     sblk->signature = getSignature(sblk);
 }
 
-uint32_t MemoryPool::getSignature(Superblock* sblk) {
+uint32_t BuddyAllocator::getSignature(Superblock* sblk) {
     return (~sblk->blueprint) ^ uint32_t(uintptr_t(sblk) >> 8);
 }
 
-bool MemoryPool::isValidSignature(Superblock* sblk) {
+bool BuddyAllocator::isValidSignature(Superblock* sblk) {
     /* The probability of a false positive (a random address containing
      * a valid signature) is 1/65536 * 28/65536 * 1/2^32, or approximately
      * 1 in 600,000,000,000,000,000 (!). What's more, since the address
@@ -119,7 +119,7 @@ bool MemoryPool::isValidSignature(Superblock* sblk) {
 }
 #endif // HPC_DEBUG
 
-void* MemoryPool::allocateSuperblock(size_t n) {
+void* BuddyAllocator::allocateSuperblock(size_t n) {
     const uint32_t j = calculateJ(n);
     Superblock* sblk = findFreeSuperblock(j);
     if (sblk == nullptr)
@@ -198,14 +198,14 @@ void* MemoryPool::allocateSuperblock(size_t n) {
     return toUserAddress(addr);
 }
 
-void MemoryPool::deallocateSuperblock(Superblock* sblk) {
+void BuddyAllocator::deallocateSuperblock(Superblock* sblk) {
     // Marks the Superblock as free and begins to
     // merge it upwards, recursively
     sblk->free = 1;
     recursiveMerge(sblk);
 }
 
-void MemoryPool::insertFreeSuperblock(Superblock* sblk) {
+void BuddyAllocator::insertFreeSuperblock(Superblock* sblk) {
     // Add this Superblock to the corresponding list in the table
     const uint32_t k = sblk->k;
     const uint32_t i = calculateI(sblk);
@@ -218,7 +218,7 @@ void MemoryPool::insertFreeSuperblock(Superblock* sblk) {
     leastSetBits[k] = leastSetBit(bitvectors[k]);	
 }
 
-void MemoryPool::removeFreeSuperblock(Superblock* sblk) {
+void BuddyAllocator::removeFreeSuperblock(Superblock* sblk) {
     // Remove the Superblock from the system info
     sblk->prev->next = sblk->next;
     sblk->next->prev = sblk->prev;
@@ -234,7 +234,7 @@ void MemoryPool::removeFreeSuperblock(Superblock* sblk) {
     }
 }
 
-Superblock* MemoryPool::findFreeSuperblock(uint32_t j) const {
+Superblock* BuddyAllocator::findFreeSuperblock(uint32_t j) const {
     uint32_t min_i = 64, min_k = 0;
     for (uint32_t k = j + 1; k < Constants::K + 2; k++)
         if (leastSetBits[k] < min_i) {
@@ -246,12 +246,12 @@ Superblock* MemoryPool::findFreeSuperblock(uint32_t j) const {
     return freeBlocks[min_k][min_i].next;
 }
 
-Superblock* MemoryPool::findBuddySuperblock(Superblock* sblk) const {
+Superblock* BuddyAllocator::findBuddySuperblock(Superblock* sblk) const {
     // Finding a Superblock's buddy is as simple as flipping the i+1-st bit of its virtual address
     return fromVirtualOffset(toVirtualOffset(sblk) ^ (uintptr_t(1) << calculateI(sblk)));
 }
 
-void MemoryPool::recursiveMerge(Superblock* sblk) {
+void BuddyAllocator::recursiveMerge(Superblock* sblk) {
     // Superblocks are merged only if these three conditions hold:
     // - there is something left to merge (i.e. the pool isn't completely empty)
     // - the current Superblock's buddy is free
@@ -279,28 +279,28 @@ void MemoryPool::recursiveMerge(Superblock* sblk) {
     recursiveMerge(sblk); // Tail recursion optimization should probably take care of this call.
 }
 
-void* MemoryPool::toUserAddress(Superblock* sblk) {
+void* BuddyAllocator::toUserAddress(Superblock* sblk) {
     return (void*)(uintptr_t(sblk) + headerSize);
 }
 
-Superblock* MemoryPool::fromUserAddress(void* ptr) {
+Superblock* BuddyAllocator::fromUserAddress(void* ptr) {
     return (Superblock*)(uintptr_t(ptr) - headerSize);
 }
 
-uintptr_t MemoryPool::toVirtualOffset(Superblock* sblk) const {
+uintptr_t BuddyAllocator::toVirtualOffset(Superblock* sblk) const {
     return uintptr_t(sblk) - virtualZero;
 }
 
-Superblock* MemoryPool::fromVirtualOffset(uintptr_t offset) const {
+Superblock* BuddyAllocator::fromVirtualOffset(uintptr_t offset) const {
     vassert(offset % alignof(Superblock) == 0);
     return (Superblock*)(virtualZero + offset);
 }
 
-uint32_t MemoryPool::calculateI(Superblock* sblk) const {
+uint32_t BuddyAllocator::calculateI(Superblock* sblk) const {
     return min(leastSetBit(toVirtualOffset(sblk)), sblk->k - 1);
 }
 
-uint32_t MemoryPool::calculateJ(size_t n) {
+uint32_t BuddyAllocator::calculateJ(size_t n) {
     return max(fastlog2(n + headerSize - 1) + 1, uint32_t(Constants::MinAllocationSizeLog));
 }
 
