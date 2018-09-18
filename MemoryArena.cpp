@@ -11,14 +11,14 @@ bool MemoryArena::Initialize() {
         return false;
     }
 
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
     arena.tp0.Initialize();
     arena.tp1.Initialize();
     arena.tp2.Initialize();
     arena.tp3.Initialize();
     arena.tp4.Initialize();
     arena.tp5.Initialize();
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
     
     arena.largePool[0].Initialize();
     arena.largePool[1].Initialize();
@@ -33,14 +33,14 @@ bool MemoryArena::Deinitialize() {
         return false;
     }
 
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
     arena.tp0.Deinitialize();
     arena.tp1.Deinitialize();
     arena.tp2.Deinitialize();
     arena.tp3.Deinitialize();
     arena.tp4.Deinitialize();
     arena.tp5.Deinitialize();
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
     
     arena.largePool[0].Deinitialize();
     arena.largePool[1].Deinitialize();
@@ -58,7 +58,7 @@ void* MemoryArena::Allocate(size_t n) {
     vassert(arena._isInitialized && "MemoryArena must be initialized before allocation!\n");
 
     void* ptr = nullptr;
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
     if (n <= 32)
         ptr = arena.tp0.Allocate();
     else if (n <= 64)
@@ -73,12 +73,12 @@ void* MemoryArena::Allocate(size_t n) {
         ptr = arena.tp5.Allocate();
     // In case allocation has been unsuccessful due to a full memory pool
     if (ptr == nullptr) {
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
         const uint32_t idx = arena.toggle.fetch_add(1) & 1;
         ptr = arena.largePool[idx].Allocate(n);
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
     }
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
     return ptr;
 }
 
@@ -88,7 +88,7 @@ void MemoryArena::Deallocate(void* ptr) {
     vassert(arena._isInitialized && "MemoryArena must be initialized before deallocation!\n");
     vassert(arena.isInside(ptr) && "MemoryArena: pointer is outside of the address space!\n");
 
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
     if (arena.tp0.isInside(ptr))
         arena.tp0.Deallocate(ptr);
     else if (arena.tp1.isInside(ptr))
@@ -102,7 +102,7 @@ void MemoryArena::Deallocate(void* ptr) {
     else if (arena.tp5.isInside(ptr))
         arena.tp5.Deallocate(ptr);
     else
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
     if (arena.largePool[0].isInside(ptr))
         arena.largePool[0].Deallocate(ptr);
     else
@@ -110,30 +110,30 @@ void MemoryArena::Deallocate(void* ptr) {
 }
 
 void MemoryArena::printCondition() {
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
     arena.tp0.printCondition();
     arena.tp1.printCondition();
     arena.tp2.printCondition();
     arena.tp3.printCondition();
     arena.tp4.printCondition();
     arena.tp5.printCondition();
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
 
     arena.largePool[0].printCondition();
     arena.largePool[1].printCondition();
 }
 
 size_t MemoryArena::max_size() {
-    return MemoryPool::max_size();
+    return BuddyAllocator::max_size();
 }
 
 bool MemoryArena::isInside(void* ptr) {
     return (
-#if USE_SMALL_POOLS == 1
+#if USE_POOL_ALLOCATORS == 1
             arena.tp0.isInside(ptr) || arena.tp1.isInside(ptr) ||
             arena.tp2.isInside(ptr) || arena.tp3.isInside(ptr) ||
             arena.tp4.isInside(ptr) || arena.tp5.isInside(ptr) ||
-#endif // USE_SMALL_POOLS
+#endif // USE_POOL_ALLOCATORS
             arena.largePool[0].isInside(ptr) || arena.largePool[1].isInside(ptr));
 }
 

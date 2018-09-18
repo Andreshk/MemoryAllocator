@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include "SmallPool.h"
-#include "MemoryPool.h"
+#include "PoolAllocator.h"
+#include "BuddyAllocator.h"
 
 // Forward declaration of the allocator, which can access the arena's methods. Of course, memory
 // can always be allocated & deallocated using MemoryArena::Allocate() and MemoryArena::Deallocate()
@@ -11,16 +11,16 @@ namespace andi { template<class> class allocator; }
 class MemoryArena {
     template<class> friend class andi::allocator;
 
-#if USE_SMALL_POOLS == 1
-    SmallPool<  32, Constants::SmallPoolSize0> tp0;
-    SmallPool<  64, Constants::SmallPoolSize1> tp1;
-    SmallPool< 128, Constants::SmallPoolSize2> tp2;
-    SmallPool< 256, Constants::SmallPoolSize3> tp3;
-    SmallPool< 512, Constants::SmallPoolSize4> tp4;
-    SmallPool<1024, Constants::SmallPoolSize5> tp5;
-#endif // USE_SMALL_POOLS
+#if USE_POOL_ALLOCATORS == 1
+    PoolAllocator<  32, Constants::PoolSize0> tp0;
+    PoolAllocator<  64, Constants::PoolSize1> tp1;
+    PoolAllocator< 128, Constants::PoolSize2> tp2;
+    PoolAllocator< 256, Constants::PoolSize3> tp3;
+    PoolAllocator< 512, Constants::PoolSize4> tp4;
+    PoolAllocator<1024, Constants::PoolSize5> tp5;
+#endif // USE_POOL_ALLOCATORS
 
-    MemoryPool largePool[2];
+    BuddyAllocator largePool[2];
     std::atomic<uint32_t> toggle;
     andi::mutex initializationmtx;
     std::atomic<bool> _isInitialized;
