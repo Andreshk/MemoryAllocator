@@ -1,8 +1,8 @@
-﻿#pragma once
+#pragma once
 #include "Commons.h"
 
 template<size_t N, size_t Count>
-class SmallPool {
+class PoolAllocator {
     // forward declaration...
     friend class MemoryArena;
 
@@ -18,7 +18,7 @@ class SmallPool {
     size_t allocatedBlocks;
     andi::mutex mtx;
 
-    SmallPool(); // no destructor, we rely on Deinitialize
+    PoolAllocator(); // no destructor, we rely on Deinitialize
     void Reset();
     void Initialize();
     void Deinitialize();
@@ -37,26 +37,26 @@ class SmallPool {
 
 public:
     // moving or copying of pools is forbidden
-    SmallPool(const SmallPool&) = delete;
-    SmallPool& operator=(const SmallPool&) = delete;
-    SmallPool(SmallPool&&) = delete;
-    SmallPool& operator=(SmallPool&&) = delete;
+    PoolAllocator(const PoolAllocator&) = delete;
+    PoolAllocator& operator=(const PoolAllocator&) = delete;
+    PoolAllocator(PoolAllocator&&) = delete;
+    PoolAllocator& operator=(PoolAllocator&&) = delete;
 };
 
 template<size_t N, size_t Count>
-SmallPool<N, Count>::SmallPool() {
+PoolAllocator<N, Count>::PoolAllocator() {
     Reset();
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::Reset() {
+void PoolAllocator<N, Count>::Reset() {
     blocksPtr = nullptr;
     headIdx = Constants::InvalidIdx;
     allocatedBlocks = 0;
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::Initialize() {
+void PoolAllocator<N, Count>::Initialize() {
     andi::lock_guard lock{ mtx };
     blocksPtr = (Smallblock*)andi::aligned_malloc(N*Count);
     for (size_t i = 0; i < Count; i++) {
@@ -71,14 +71,14 @@ void SmallPool<N, Count>::Initialize() {
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::Deinitialize() {
+void PoolAllocator<N, Count>::Deinitialize() {
     andi::lock_guard lock{ mtx };
     andi::aligned_free(blocksPtr);
     Reset();
 }
 
 template<size_t N, size_t Count>
-void* SmallPool<N, Count>::Allocate() {
+void* PoolAllocator<N, Count>::Allocate() {
     andi::lock_guard lock{ mtx };
     if (headIdx == Constants::InvalidIdx)
         return nullptr;
@@ -93,7 +93,7 @@ void* SmallPool<N, Count>::Allocate() {
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::Deallocate(void* sblk) {
+void PoolAllocator<N, Count>::Deallocate(void* sblk) {
     andi::lock_guard lock{ mtx };
     size_t idx = (Smallblock*)sblk - blocksPtr;
     vassert(uintptr_t(sblk) % Constants::Alignment == 0
@@ -109,36 +109,36 @@ void SmallPool<N, Count>::Deallocate(void* sblk) {
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::printCondition() const {
-    std::cout << "SmallPool<" << N << ">:\n"
+void PoolAllocator<N, Count>::printCondition() const {
+    std::cout << "PoolAllocator<" << N << "," << Count << ">:\n"
         << "  pool size:  " << Count * N << " bytes (" << Count << " blocks)\n"
         << "  free space: " << (Count - allocatedBlocks)*N << " bytes (" << Count - allocatedBlocks << " blocks)\n"
         << "  used space: " << allocatedBlocks*N << " bytes (" << allocatedBlocks << " blocks)\n\n";
 }
 
 template<size_t N, size_t Count>
-bool SmallPool<N, Count>::isInside(void* ptr) const {
+bool PoolAllocator<N, Count>::isInside(void* ptr) const {
     return ptr >= blocksPtr && ptr < (blocksPtr + N*Count);
 }
 
 #if HPC_DEBUG == 1
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::signFreeBlock(Smallblock* ptr) {
+void PoolAllocator<N, Count>::signFreeBlock(Smallblock* ptr) {
     ptr->pad[0] = getSignature(ptr);
 }
 
 template<size_t N, size_t Count>
-void SmallPool<N, Count>::unsignFreeBlock(Smallblock* ptr) {
+void PoolAllocator<N, Count>::unsignFreeBlock(Smallblock* ptr) {
     ptr->pad[0] = 0;
 }
 
 template<size_t N, size_t Count>
-size_t SmallPool<N, Count>::getSignature(Smallblock* ptr) {
+size_t PoolAllocator<N, Count>::getSignature(Smallblock* ptr) {
     return ~size_t(ptr);
 }
 
 template<size_t N, size_t Count>
-bool SmallPool<N, Count>::isSigned(Smallblock* ptr) {
+bool PoolAllocator<N, Count>::isSigned(Smallblock* ptr) {
     // There is a 1 in 2^64 chance of a false positive,
     // decreasing exponentially every time the program is ran.
     return (ptr->pad[0] == getSignature(ptr));
