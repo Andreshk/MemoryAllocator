@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Commons.h"
 
 // Contains the necessary information for managing the free "superblocks"
