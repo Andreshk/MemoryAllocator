@@ -12,15 +12,15 @@ class MemoryArena {
     template<class> friend class andi::allocator;
 
 #if USE_POOL_ALLOCATORS == 1
-    PoolAllocator<  32, Constants::PoolSize0> tp0;
-    PoolAllocator<  64, Constants::PoolSize1> tp1;
-    PoolAllocator< 128, Constants::PoolSize2> tp2;
-    PoolAllocator< 256, Constants::PoolSize3> tp3;
-    PoolAllocator< 512, Constants::PoolSize4> tp4;
-    PoolAllocator<1024, Constants::PoolSize5> tp5;
+    PoolAllocator<  32, Constants::PoolSize0> pool0;
+    PoolAllocator<  64, Constants::PoolSize1> pool1;
+    PoolAllocator< 128, Constants::PoolSize2> pool2;
+    PoolAllocator< 256, Constants::PoolSize3> pool3;
+    PoolAllocator< 512, Constants::PoolSize4> pool4;
+    PoolAllocator<1024, Constants::PoolSize5> pool5;
 #endif // USE_POOL_ALLOCATORS
 
-    BuddyAllocator largePool[2];
+    BuddyAllocator buddyAlloc[2];
     std::atomic<uint32_t> toggle;
     andi::mutex initializationmtx;
     std::atomic<bool> _isInitialized;

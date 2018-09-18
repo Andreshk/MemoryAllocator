@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Commons.h"
 
 template<size_t N, size_t Count>

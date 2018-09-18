@@ -1,4 +1,4 @@
-#include "BuddyAllocator.h"
+﻿#include "BuddyAllocator.h"
 
 BuddyAllocator::BuddyAllocator() {
     Reset();
