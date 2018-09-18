@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Commons.h"
 
 // Contains the necessary information for managing the free "superblocks"
@@ -56,7 +56,7 @@ static_assert(allocatorMaxSize < Constants::BuddyAllocatorSize
  - Finally, for each bitvector we keep the lowest toggled bit. This is
  used during searching for a suitable block of memory
 */
-class MemoryPool {
+class BuddyAllocator {
     // forward declaration...
     friend class MemoryArena;
     using byte = uint8_t;
@@ -69,7 +69,7 @@ private:
     uintptr_t virtualZero;
     andi::mutex mtx;
 
-    MemoryPool(); // no destructor, we rely on Deinitialize
+    BuddyAllocator(); // no destructor, we rely on Deinitialize
     void Reset();
     void Initialize();
     void Deinitialize();
@@ -101,10 +101,10 @@ private:
 
 public:
     // moving or copying of pools is forbidden
-    MemoryPool(const MemoryPool&) = delete;
-    MemoryPool& operator=(const MemoryPool&) = delete;
-    MemoryPool(MemoryPool&&) = delete;
-    MemoryPool& operator=(MemoryPool&&) = delete;
+    BuddyAllocator(const BuddyAllocator&) = delete;
+    BuddyAllocator& operator=(const BuddyAllocator&) = delete;
+    BuddyAllocator(BuddyAllocator&&) = delete;
+    BuddyAllocator& operator=(BuddyAllocator&&) = delete;
 };
 
 // Helper math functions
