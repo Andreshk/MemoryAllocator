@@ -1,23 +1,6 @@
 #pragma once
 #include "Commons.h"
 
-// Contains the necessary information for managing the free "superblocks"
-struct Superblock : SuperblockHeader {
-    Superblock* prev;
-    Superblock* next;
-};
-
-// Sanity checks for global constants' validity
-static_assert(Constants::HeaderSize < Constants::Alignment);
-static_assert(Constants::Alignment % alignof(Superblock) == 0); // virtualZero should be a valid Superblock address
-static_assert(Constants::K <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
-static_assert(Constants::HeaderSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
-static_assert(Constants::MinAllocationSizeLog >= 5
-           && Constants::MinAllocationSizeLog <= Constants::K);
-static_assert(Constants::MaxAllocationSize < Constants::BuddyAllocatorSize
-           && Constants::MaxAllocationSize + Constants::HeaderSize - 1 < 0x1'0000'0000ui64);
-static_assert(offsetof(Superblock, prev) == Constants::HeaderSize); // fun fact: this causes undefined behaviour
-
 /*
  - The memory returned to the user is allocated from a large address space (pool)
  with a power of two size (f.e. 4GB). This address space is allocated from the

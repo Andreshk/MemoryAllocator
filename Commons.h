@@ -9,7 +9,7 @@
 #define HPC_DEBUG 1
 #define USE_POOL_ALLOCATORS 0
 
-// Each BuddyAllocator allocation need the following header to manage the allocations.
+// Each BuddyAllocator allocation needs the following header to manage the allocations.
 // In theory this header can be reduced to 7 bits (!) -> O(lglgn)
 struct SuperblockHeader {
 #if HPC_DEBUG == 1
@@ -54,6 +54,23 @@ enum Constants : size_t {
     PoolSize5 =   200'000, // 1024B
 };
 // Scoped enums are nice, but require overly verbose conversions to the underlying type...
+
+// Used by the BuddyAllocator to manage its free Superblocks
+struct Superblock : SuperblockHeader {
+    Superblock* prev;
+    Superblock* next;
+};
+
+// Sanity checks for global constants' validity
+static_assert(Constants::HeaderSize < Constants::Alignment);
+static_assert(Constants::Alignment % alignof(Superblock) == 0); // virtualZero should be a valid Superblock address
+static_assert(Constants::K <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
+static_assert(Constants::HeaderSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
+static_assert(Constants::MinAllocationSizeLog >= 5
+           && Constants::MinAllocationSizeLog <= Constants::K);
+static_assert(Constants::MaxAllocationSize <= Constants::BuddyAllocatorSize
+           && Constants::MaxAllocationSize + Constants::HeaderSize <= 0x1'0000'0000ui64);
+static_assert(offsetof(Superblock, prev) == Constants::HeaderSize); // fun fact: this causes undefined behaviour
 
 namespace andi
 {
