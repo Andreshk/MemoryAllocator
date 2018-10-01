@@ -23,15 +23,13 @@ class MemoryArena {
     BuddyAllocator buddyAlloc[2];
     std::atomic<uint32_t> toggle;
     andi::mutex initializationmtx;
-    std::atomic<bool> _isInitialized;
+    std::atomic<bool> initialized;
 
     // look-up "static initialization fiasco"
     static MemoryArena arena;
 
     MemoryArena();
     static size_t max_size();
-    static void LockAll();
-    static void UnlockAll();
     static bool isInside(void*);
 
 public:

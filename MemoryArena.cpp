@@ -2,11 +2,11 @@
 
 MemoryArena MemoryArena::arena{};
 
-MemoryArena::MemoryArena() : _isInitialized(false) {}
+MemoryArena::MemoryArena() : initialized(false) {}
 
 bool MemoryArena::Initialize() {
     andi::lock_guard lock{ arena.initializationmtx };
-    if (arena._isInitialized) {
+    if (arena.initialized) {
         vassert(false && "MemoryArena has already been initialized!");
         return false;
     }
@@ -22,13 +22,13 @@ bool MemoryArena::Initialize() {
     
     arena.buddyAlloc[0].Initialize();
     arena.buddyAlloc[1].Initialize();
-    arena._isInitialized = true;
+    arena.initialized = true;
     return true;
 }
 
 bool MemoryArena::Deinitialize() {
     andi::lock_guard lock{ arena.initializationmtx };
-    if (!arena._isInitialized) {
+    if (!arena.initialized) {
         vassert(false && "MemoryArena has already been deinitialized!");
         return false;
     }
@@ -44,18 +44,18 @@ bool MemoryArena::Deinitialize() {
     
     arena.buddyAlloc[0].Deinitialize();
     arena.buddyAlloc[1].Deinitialize();
-    arena._isInitialized = false;
+    arena.initialized = false;
     return true;
 }
 
 bool MemoryArena::isInitialized() {
-    return arena._isInitialized;
+    return arena.initialized;
 }
 
 void* MemoryArena::Allocate(size_t n) {
     if (n == 0)
         return nullptr;
-    vassert(arena._isInitialized && "MemoryArena must be initialized before allocation!\n");
+    vassert(arena.initialized && "MemoryArena must be initialized before allocation!\n");
 
     void* ptr = nullptr;
 #if USE_POOL_ALLOCATORS == 1
@@ -85,7 +85,7 @@ void* MemoryArena::Allocate(size_t n) {
 void MemoryArena::Deallocate(void* ptr) {
     if (!ptr)
         return;
-    vassert(arena._isInitialized && "MemoryArena must be initialized before deallocation!\n");
+    vassert(arena.initialized && "MemoryArena must be initialized before deallocation!\n");
     vassert(arena.isInside(ptr) && "MemoryArena: pointer is outside of the address space!\n");
 
 #if USE_POOL_ALLOCATORS == 1

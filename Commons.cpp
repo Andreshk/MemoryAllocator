@@ -21,7 +21,8 @@ void andi::aligned_free(void* ptr) {
 #if HPC_DEBUG == 1
 void andi::vassert_impl(const char* expr, const char* file, const unsigned line) {
     // iei
-    int x = 5;
+    int* p = nullptr;
+    *p = 5;
 }
 #endif // HPC_DEBUG
 

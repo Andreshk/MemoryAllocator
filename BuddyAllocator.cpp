@@ -81,19 +81,19 @@ void BuddyAllocator::printCondition() const {
     std::cout << "Pool address: 0x" << std::hex << (void*)poolPtr << std::dec << "\n";
     std::cout << "Pool size:  " << Constants::BuddyAllocatorSize << " bytes.\n";
     std::cout << "Free superblocks of type (k,i):\n";
-    size_t counter, free_space = 0;
+    size_t freeSpace = 0;
     for (uint32_t k = 0; k < Constants::K + 2; k++)
         for (uint32_t i = 0; i < Constants::K + 1; i++) {
-            counter = 0;
+            size_t counter = 0;
             const Superblock* headPtr = &freeBlocks[k][i];
             for (const Superblock* ptr = headPtr->next; ptr != headPtr; ptr = ptr->next)
                 ++counter;
             if (counter != 0)
                 std::cout << " (" << k << "," << i << "): " << counter << "\n";
-            free_space += counter * ((size_t(1) << k) - (size_t(1) << i));
+            freeSpace += counter * ((size_t(1) << k) - (size_t(1) << i));
     }
-    std::cout << "Free space: " << free_space << " bytes.\n";
-    std::cout << "Used space: " << Constants::BuddyAllocatorSize - free_space << " bytes.\n\n";
+    std::cout << "Free space: " << freeSpace << " bytes.\n";
+    std::cout << "Used space: " << Constants::BuddyAllocatorSize - freeSpace << " bytes.\n\n";
 }
 
 #if HPC_DEBUG == 1
@@ -107,12 +107,13 @@ uint32_t BuddyAllocator::getSignature(Superblock* sblk) {
 
 bool BuddyAllocator::isValidSignature(Superblock* sblk) {
     /* The probability of a false positive (a random address containing
-     * a valid signature) is 1/65536 * 28/65536 * 1/2^32, or approximately
-     * 1 in 600,000,000,000,000,000 (!). What's more, since the address
-     * itself is used in generating the signature, at every following run
-     * the probability is multiplied by this number: 1 in 10^35, 1 на 10^53,
-     * ...in general, practically zero just after the first run */ 
-    return (sblk->free==0
+     * a valid signature) is 1/2 * 27/65536 * 1/2^32, or approximately
+     * 1 in 21,000,000,000,000 (!). What's more, since the address of
+     * a Superblock itself is used in generating the Superblock's
+     * signature, at every following run the probability is multiplied
+     * by this number: 1 in 10^13, 1 in 10^26, 1 in 10^40...
+     * in general, practically zero just after the first run */ 
+    return (sblk->free == 0
          && sblk->k > Constants::MinAllocationSizeLog
          && sblk->k <= Constants::K + 1
          && sblk->signature == getSignature(sblk));
@@ -211,7 +212,7 @@ void BuddyAllocator::insertFreeSuperblock(Superblock* sblk) {
     const uint32_t i = calculateI(sblk);
     sblk->next = freeBlocks[k][i].next;
     freeBlocks[k][i].next = sblk;
-    sblk->prev = &freeBlocks[k][i]; // == ptr->next->prev
+    sblk->prev = &freeBlocks[k][i]; // == sblk->next->prev
     sblk->next->prev = sblk;
     // Update the bitvector, that a free Superblock of this size now is sure to exist
     bitvectors[k] |= (1ui64 << i);
@@ -222,7 +223,7 @@ void BuddyAllocator::removeFreeSuperblock(Superblock* sblk) {
     // Remove the Superblock from the system info
     sblk->prev->next = sblk->next;
     sblk->next->prev = sblk->prev;
-    //ptr->next = ptr->prev = nullptr;
+    //sblk->next = sblk->prev = nullptr;
     const uint32_t k = sblk->k;
     const uint32_t i = calculateI(sblk);
     // If there are no more Superblocks of size (k,i),
