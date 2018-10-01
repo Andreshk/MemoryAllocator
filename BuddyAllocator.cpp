@@ -23,7 +23,7 @@ void BuddyAllocator::Initialize() {
     // The extra space is needed for the header of the first block, so that
     // the user-returned address of the first block is aligned at 32 bytes.
     poolPtr = (byte*)andi::aligned_malloc(Constants::BuddyAllocatorSize + Constants::Alignment);
-    virtualZero = uintptr_t(poolPtr) + Constants::Alignment - headerSize;
+    virtualZero = uintptr_t(poolPtr) + Constants::Alignment - Constants::HeaderSize;
     vassert(virtualZero % alignof(Superblock) == 0);
     // ...initialize the system information...
     for (uint32_t k = 0; k < Constants::K + 2; k++) {
@@ -52,7 +52,7 @@ void BuddyAllocator::Deinitialize() {
 }
 
 void* BuddyAllocator::Allocate(size_t n) {
-    if (n > allocatorMaxSize)
+    if (n > Constants::MaxAllocationSize)
         return nullptr;
     andi::lock_guard lock{ mtx };
     return allocateSuperblock(n);
@@ -69,7 +69,7 @@ void BuddyAllocator::Deallocate(void* ptr) {
 }
 
 size_t BuddyAllocator::max_size() {
-    return allocatorMaxSize;
+    return Constants::MaxAllocationSize;
 }
 
 bool BuddyAllocator::isInside(void* ptr) const {
@@ -281,11 +281,11 @@ void BuddyAllocator::recursiveMerge(Superblock* sblk) {
 }
 
 void* BuddyAllocator::toUserAddress(Superblock* sblk) {
-    return (void*)(uintptr_t(sblk) + headerSize);
+    return (void*)(uintptr_t(sblk) + Constants::HeaderSize);
 }
 
 Superblock* BuddyAllocator::fromUserAddress(void* ptr) {
-    return (Superblock*)(uintptr_t(ptr) - headerSize);
+    return (Superblock*)(uintptr_t(ptr) - Constants::HeaderSize);
 }
 
 uintptr_t BuddyAllocator::toVirtualOffset(Superblock* sblk) const {
@@ -302,7 +302,7 @@ uint32_t BuddyAllocator::calculateI(Superblock* sblk) const {
 }
 
 uint32_t BuddyAllocator::calculateJ(size_t n) {
-    return max(fastlog2(n + headerSize - 1) + 1, uint32_t(Constants::MinAllocationSizeLog));
+    return max(fastlog2(n + Constants::HeaderSize - 1) + 1, uint32_t(Constants::MinAllocationSizeLog));
 }
 
 uint32_t min(uint32_t a, uint32_t b) { return (a < b) ? a : b; }

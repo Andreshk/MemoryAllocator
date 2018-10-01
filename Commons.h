@@ -9,6 +9,24 @@
 #define HPC_DEBUG 1
 #define USE_POOL_ALLOCATORS 0
 
+// Each BuddyAllocator allocation need the following header to manage the allocations.
+// In theory this header can be reduced to 7 bits (!) -> O(lglgn)
+struct SuperblockHeader {
+#if HPC_DEBUG == 1
+    union {
+        struct {
+            uint16_t k;
+            uint16_t free;
+        };
+        uint32_t blueprint;
+    };
+    uint32_t signature;
+#else
+    uint32_t k;
+    uint32_t free;
+#endif // HPC_DEBUG
+};
+
 enum Constants : size_t {
     // Minimum alignment for allocation requests
     Alignment = 32,
@@ -17,12 +35,16 @@ enum Constants : size_t {
     // The buddy allocators need to have their size a power of 2:
     // 2GB in 64-bit mode, 512MB in 32-bit
     BuddyAllocatorSize = size_t(1) << K,
+    // Superblock header size, in bytes
+    HeaderSize = sizeof(SuperblockHeader),
     // Invalid block index for the small pools
     InvalidIdx = ~size_t(0),
     // Logarithm of the smallest allocation size, in bytes
     MinAllocationSizeLog = 5,
     // Minimum allocation size, in bytes
     MinAllocationSize = size_t(1) << MinAllocationSizeLog,
+    // The upper limit for a single allocation
+    MaxAllocationSize = (Constants::BuddyAllocatorSize / 4) - Constants::HeaderSize,
     // Number of blocks in the fixed-size pools:
     PoolSize0 = 1'500'000, //   32B
     PoolSize1 = 1'500'000, //   64B

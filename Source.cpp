@@ -10,13 +10,13 @@
 #include <random>
 
 /* TO-DO:
- - move Superblock somewhere to access the header size in Constants
- - fix comments about false positive probability
- - rename MemoryPool -> BuddyAllocator
- - rename mutex to spin-lock
+ - FIX THE SMALL POOLS (!)
+ - make allocator return useful size in bytes
+ - add a method for system-allocated bytes (UsefulSize)
  - split Commons into Defines & Utilities and move stuff there (math, benchmarking, mutex)
+ - add Benchmarks.{h,cpp}
  - implement vassert()
- - make an Allocator interface
+ - make an Allocator interface: Initialize, Deinitialize, Print, Allocate, Deallocate, IsInside/Contains, MaxSize, UsefulSize
  - make minimal andi::allocator (Bob Steagall 2017, 43:56)
  - simplify time measurement (A chrono tutorial, 50:03)
  */
@@ -52,7 +52,7 @@ int main() {
     // 1 thread: up to ~70% faster
     // 4 threads: up to ~40%
     std::vector<std::thread> ths;
-    const int nthreads = 4; // the # of threads running in parallel
+    const int nthreads = 1; // the # of threads running in parallel
     for (int i = 0; i < nthreads; i++)
         ths.emplace_back(testRandomStringAllocation, 25, 500000, 20, 1000);
 

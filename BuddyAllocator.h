@@ -2,40 +2,21 @@
 #include "Commons.h"
 
 // Contains the necessary information for managing the free "superblocks"
-struct Superblock {
-#if HPC_DEBUG == 1
-    union {
-        struct {
-            uint16_t k;
-            uint16_t free;
-        };
-        uint32_t blueprint;
-    };
-    uint32_t signature;
-#else
-    uint32_t k;
-    uint32_t free;
-#endif // HPC_DEBUG
-    // All previous member data form the so-called header.
-    // Fun fact: in theory this header can be reduced to 7 bits (!) -> O(lglgn)
+struct Superblock : SuperblockHeader {
     Superblock* prev;
     Superblock* next;
 };
 
-// Superblock header size, in bytes
-constexpr size_t headerSize = offsetof(Superblock, prev); // fun fact: this causes undefined behaviour
-// The upper limit for a single allocation
-constexpr size_t allocatorMaxSize = (Constants::BuddyAllocatorSize / 4) - headerSize;
-
 // Sanity checks for global constants' validity
-static_assert(headerSize < Constants::Alignment);
+static_assert(Constants::HeaderSize < Constants::Alignment);
 static_assert(Constants::Alignment % alignof(Superblock) == 0); // virtualZero should be a valid Superblock address
 static_assert(Constants::K <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
-static_assert(headerSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
+static_assert(Constants::HeaderSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
 static_assert(Constants::MinAllocationSizeLog >= 5
            && Constants::MinAllocationSizeLog <= Constants::K);
-static_assert(allocatorMaxSize < Constants::BuddyAllocatorSize
-           && allocatorMaxSize + headerSize - 1 < 0x1'0000'0000ui64);
+static_assert(Constants::MaxAllocationSize < Constants::BuddyAllocatorSize
+           && Constants::MaxAllocationSize + Constants::HeaderSize - 1 < 0x1'0000'0000ui64);
+static_assert(offsetof(Superblock, prev) == Constants::HeaderSize); // fun fact: this causes undefined behaviour
 
 /*
  - The memory returned to the user is allocated from a large address space (pool)
