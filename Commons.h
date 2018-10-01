@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <iostream> // for allocator internal state print-out
+#include <utility>  // std::pair
 
 // These definitions control the allocator behaviour (see README.md)
 #define HPC_DEBUG 1

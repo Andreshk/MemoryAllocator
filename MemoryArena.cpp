@@ -109,6 +109,36 @@ void MemoryArena::Deallocate(void* ptr) {
         arena.buddyAlloc[1].Deallocate(ptr);
 }
 
+std::pair<void*, size_t> MemoryArena::AllocateUseful(size_t n){
+    if (n == 0)
+        return { nullptr, 0 };
+    vassert(arena.initialized && "MemoryArena must be initialized before allocation!\n");
+
+    std::pair<void*, size_t> res{ nullptr, 0 };
+#if USE_POOL_ALLOCATORS == 1
+    if (n <= 32)
+        res = arena.pool0.AllocateUseful();
+    else if (n <= 64)
+        res = arena.pool1.AllocateUseful();
+    else if (n <= 128)
+        res = arena.pool2.AllocateUseful();
+    else if (n <= 256)
+        res = arena.pool3.AllocateUseful();
+    else if (n <= 512)
+        res = arena.pool4.AllocateUseful();
+    else if (n <= 1024)
+        res = arena.pool5.AllocateUseful();
+    // In case allocation has been unsuccessful due to a full memory pool
+    if (res.first == nullptr) {
+#endif // USE_POOL_ALLOCATORS
+        const uint32_t idx = arena.toggle.fetch_add(1) & 1;
+        res = arena.buddyAlloc[idx].AllocateUseful(n);
+#if USE_POOL_ALLOCATORS == 1
+    }
+#endif // USE_POOL_ALLOCATORS
+    return res;
+}
+
 void MemoryArena::printCondition() {
 #if USE_POOL_ALLOCATORS == 1
     arena.pool0.printCondition();

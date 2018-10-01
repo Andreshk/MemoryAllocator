@@ -11,7 +11,6 @@
 
 /* TO-DO:
  - FIX THE SMALL POOLS (!)
- - make allocator return useful size in bytes
  - add a method for system-allocated bytes
  - split Commons into Defines & Utilities and move stuff there (math, benchmarking, mutex)
  - add Benchmarks.{h,cpp}

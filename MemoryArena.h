@@ -44,6 +44,9 @@ public:
     static bool isInitialized();
     static void* Allocate(size_t);
     static void Deallocate(void*);
+    // Returns the number of bytes that the user can actually use before needing a
+    // reallocation (f.e. after an inexact allocation by the internal allocators)
+    static std::pair<void*, size_t> AllocateUseful(size_t);
     // A very helpful methos to print the buddy allocator's state
     static void printCondition();
 };

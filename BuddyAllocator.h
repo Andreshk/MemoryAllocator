@@ -40,6 +40,7 @@ private:
 
     void* Allocate(size_t);
     void Deallocate(void*);
+    std::pair<void*, size_t> AllocateUseful(size_t);
     static size_t max_size();
     bool isInside(void*) const;
     void printCondition() const;

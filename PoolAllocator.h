@@ -25,6 +25,7 @@ class PoolAllocator {
 
     void* Allocate();
     void Deallocate(void*);
+    std::pair<void*, size_t> AllocateUseful();
     void printCondition() const;
     bool isInside(void*) const;
 #if HPC_DEBUG == 1
@@ -106,6 +107,11 @@ void PoolAllocator<N, Count>::Deallocate(void* sblk) {
     --allocatedBlocks;
     blocksPtr[idx].next = headIdx;
     headIdx = idx;
+}
+
+template<size_t N, size_t Count>
+std::pair<void*, size_t> PoolAllocator<N, Count>::AllocateUseful() {
+    return { Allocate(), N };
 }
 
 template<size_t N, size_t Count>
