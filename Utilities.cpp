@@ -1,4 +1,5 @@
 ﻿#include "Defines.h"
+#include <malloc.h>
 
 void* andi::aligned_malloc(size_t size) {
 #if defined(_MSC_VER)

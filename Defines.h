@@ -3,9 +3,7 @@
 #define HPC_DEBUG 1
 #define USE_POOL_ALLOCATORS 0
 
-#define INCLUDE_ONCE
 #include "Utilities.h"
-#undef INCLUDE_ONCE
 
 enum Constants : size_t {
     // Minimum alignment for allocation requests

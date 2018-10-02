@@ -1,5 +1,6 @@
 #pragma once
 #include "Defines.h"
+#include "Utilities.h"
 
 template<size_t N, size_t Count>
 class PoolAllocator {

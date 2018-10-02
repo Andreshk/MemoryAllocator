@@ -1,12 +1,8 @@
 #pragma once
-#ifndef INCLUDE_ONCE
-#error "Please, include Defines.h instead of this header"
-#endif // INCLUDE_ONCE
-
+#include "Defines.h"
 #include <atomic>
 #include <cstdint>
 #include <stdlib.h>
-#include <malloc.h>
 #include <iostream> // for allocator internal state print-out
 #include <utility>  // std::pair
 
