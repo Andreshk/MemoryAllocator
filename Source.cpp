@@ -12,7 +12,6 @@
 /* TO-DO:
  - FIX THE SMALL POOLS (!)
  - add a method for system-allocated bytes
- - move more stuff to Utilities (math, benchmarking, mutex)
  - add Benchmarks.{h,cpp}
  - implement vassert()
  - make an Allocator interface: Initialize, Deinitialize, Print, Allocate, Deallocate, IsInside/Contains, MaxSize, UsefulSize

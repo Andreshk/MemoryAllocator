@@ -73,13 +73,4 @@ public:
     BuddyAllocator& operator=(BuddyAllocator&&) = delete;
 };
 
-// Helper math functions
-uint32_t min(uint32_t, uint32_t);
-uint32_t max(uint32_t, uint32_t);
-uint64_t max(uint64_t, uint64_t);
-uint32_t leastSetBit(uint32_t);
-uint32_t leastSetBit(uint64_t);
-uint32_t fastlog2(uint32_t);
-uint32_t fastlog2(uint64_t);
-
 // iei
