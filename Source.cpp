@@ -11,10 +11,9 @@
 
 /* TO-DO:
  - FIX THE SMALL POOLS (!)
- - add a method for system-allocated bytes
  - add Benchmarks.{h,cpp}
  - implement vassert()
- - make an Allocator interface: Initialize, Deinitialize, Print, Allocate, Deallocate, IsInside/Contains, MaxSize, UsefulSize
+ - make an Allocator interface: Initialize, Deinitialize, Print, Allocate, Deallocate, Contains, MaxSize, UsefulSize
  - make minimal andi::allocator (Bob Steagall 2017, 43:56)
  - simplify time measurement (A chrono tutorial, 50:03)
  */
@@ -57,7 +56,7 @@ int main() {
     for (auto& th : ths)
         th.join();
     
-    MemoryArena::printCondition();
+    MemoryArena::PrintCondition();
     MemoryArena::Deinitialize();
 }
 

@@ -27,8 +27,9 @@ class PoolAllocator {
     void* Allocate();
     void Deallocate(void*);
     std::pair<void*, size_t> AllocateUseful();
-    void printCondition() const;
-    bool isInside(void*) const;
+    void PrintCondition() const;
+    bool Contains(void*) const;
+    static size_t MaxSize();
 #if HPC_DEBUG == 1
     // Here the signatures work in the other way - only the free blocks are signed
     static void signFreeBlock(Smallblock*);
@@ -116,7 +117,7 @@ std::pair<void*, size_t> PoolAllocator<N, Count>::AllocateUseful() {
 }
 
 template<size_t N, size_t Count>
-void PoolAllocator<N, Count>::printCondition() const {
+void PoolAllocator<N, Count>::PrintCondition() const {
     std::cout << "PoolAllocator<" << N << "," << Count << ">:\n"
         << "  pool size:  " << Count * N << " bytes (" << Count << " blocks)\n"
         << "  free space: " << (Count - allocatedBlocks)*N << " bytes (" << Count - allocatedBlocks << " blocks)\n"
@@ -124,8 +125,13 @@ void PoolAllocator<N, Count>::printCondition() const {
 }
 
 template<size_t N, size_t Count>
-bool PoolAllocator<N, Count>::isInside(void* ptr) const {
+bool PoolAllocator<N, Count>::Contains(void* ptr) const {
     return ptr >= blocksPtr && ptr < (blocksPtr + N*Count);
+}
+
+template<size_t N, size_t Count>
+size_t PoolAllocator<N, Count>::MaxSize() {
+    return N;
 }
 
 #if HPC_DEBUG == 1

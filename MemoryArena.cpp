@@ -48,10 +48,6 @@ bool MemoryArena::Deinitialize() {
     return true;
 }
 
-bool MemoryArena::isInitialized() {
-    return arena.initialized;
-}
-
 void* MemoryArena::Allocate(size_t n) {
     if (n == 0)
         return nullptr;
@@ -86,24 +82,24 @@ void MemoryArena::Deallocate(void* ptr) {
     if (!ptr)
         return;
     vassert(arena.initialized && "MemoryArena must be initialized before deallocation!\n");
-    vassert(arena.isInside(ptr) && "MemoryArena: pointer is outside of the address space!\n");
+    vassert(arena.Contains(ptr) && "MemoryArena: pointer is outside of the address space!\n");
 
 #if USE_POOL_ALLOCATORS == 1
-    if (arena.pool0.isInside(ptr))
+    if (arena.pool0.Contains(ptr))
         arena.pool0.Deallocate(ptr);
-    else if (arena.pool1.isInside(ptr))
+    else if (arena.pool1.Contains(ptr))
         arena.pool1.Deallocate(ptr);
-    else if (arena.pool2.isInside(ptr))
+    else if (arena.pool2.Contains(ptr))
         arena.pool2.Deallocate(ptr);
-    else if (arena.pool3.isInside(ptr))
+    else if (arena.pool3.Contains(ptr))
         arena.pool3.Deallocate(ptr);
-    else if (arena.pool4.isInside(ptr))
+    else if (arena.pool4.Contains(ptr))
         arena.pool4.Deallocate(ptr);
-    else if (arena.pool5.isInside(ptr))
+    else if (arena.pool5.Contains(ptr))
         arena.pool5.Deallocate(ptr);
     else
 #endif // USE_POOL_ALLOCATORS
-    if (arena.buddyAlloc[0].isInside(ptr))
+    if (arena.buddyAlloc[0].Contains(ptr))
         arena.buddyAlloc[0].Deallocate(ptr);
     else
         arena.buddyAlloc[1].Deallocate(ptr);
@@ -139,32 +135,32 @@ std::pair<void*, size_t> MemoryArena::AllocateUseful(size_t n){
     return res;
 }
 
-void MemoryArena::printCondition() {
+void MemoryArena::PrintCondition() {
 #if USE_POOL_ALLOCATORS == 1
-    arena.pool0.printCondition();
-    arena.pool1.printCondition();
-    arena.pool2.printCondition();
-    arena.pool3.printCondition();
-    arena.pool4.printCondition();
-    arena.pool5.printCondition();
+    arena.pool0.PrintCondition();
+    arena.pool1.PrintCondition();
+    arena.pool2.PrintCondition();
+    arena.pool3.PrintCondition();
+    arena.pool4.PrintCondition();
+    arena.pool5.PrintCondition();
 #endif // USE_POOL_ALLOCATORS
 
-    arena.buddyAlloc[0].printCondition();
-    arena.buddyAlloc[1].printCondition();
+    arena.buddyAlloc[0].PrintCondition();
+    arena.buddyAlloc[1].PrintCondition();
 }
 
-size_t MemoryArena::max_size() {
-    return BuddyAllocator::max_size();
+size_t MemoryArena::MaxSize() {
+    return BuddyAllocator::MaxSize();
 }
 
-bool MemoryArena::isInside(void* ptr) {
+bool MemoryArena::Contains(void* ptr) {
     return (
 #if USE_POOL_ALLOCATORS == 1
-            arena.pool0.isInside(ptr) || arena.pool1.isInside(ptr) ||
-            arena.pool2.isInside(ptr) || arena.pool3.isInside(ptr) ||
-            arena.pool4.isInside(ptr) || arena.pool5.isInside(ptr) ||
+            arena.pool0.Contains(ptr) || arena.pool1.Contains(ptr) ||
+            arena.pool2.Contains(ptr) || arena.pool3.Contains(ptr) ||
+            arena.pool4.Contains(ptr) || arena.pool5.Contains(ptr) ||
 #endif // USE_POOL_ALLOCATORS
-            arena.buddyAlloc[0].isInside(ptr) || arena.buddyAlloc[1].isInside(ptr));
+            arena.buddyAlloc[0].Contains(ptr) || arena.buddyAlloc[1].Contains(ptr));
 }
 
 // iei

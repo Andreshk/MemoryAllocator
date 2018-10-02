@@ -74,16 +74,16 @@ std::pair<void*, size_t> BuddyAllocator::AllocateUseful(size_t n) {
     return { ptr, (size_t(1) << (k - 1)) - Constants::HeaderSize };
 }
 
-size_t BuddyAllocator::max_size() {
+size_t BuddyAllocator::MaxSize() {
     return Constants::MaxAllocationSize;
 }
 
-bool BuddyAllocator::isInside(void* ptr) const {
+bool BuddyAllocator::Contains(void* ptr) const {
     // The +Alignment here also compensates for the over-allocation for the first block's header
     return ptr >= poolPtr && ptr < (poolPtr + Constants::BuddyAllocatorSize + Constants::Alignment);
 }
 
-void BuddyAllocator::printCondition() const {
+void BuddyAllocator::PrintCondition() const {
     std::cout << "Pool address: 0x" << std::hex << (void*)poolPtr << std::dec << "\n";
     std::cout << "Pool size:  " << Constants::BuddyAllocatorSize << " bytes.\n";
     std::cout << "Free superblocks of type (k,i):\n";

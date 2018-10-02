@@ -29,9 +29,7 @@ class MemoryArena {
     static MemoryArena arena;
 
     MemoryArena();
-    static size_t max_size();
-    static bool isInside(void*);
-
+    static bool Contains(void*);
 public:
     // moving or copying of arenas is forbidden
     MemoryArena(const MemoryArena&) = delete;
@@ -41,12 +39,12 @@ public:
 
     static bool Initialize();
     static bool Deinitialize();
-    static bool isInitialized();
     static void* Allocate(size_t);
     static void Deallocate(void*);
+    static size_t MaxSize();
     // Returns the number of bytes that the user can actually use before needing a
     // reallocation (f.e. after an inexact allocation by the internal allocators)
     static std::pair<void*, size_t> AllocateUseful(size_t);
     // A very helpful method to print the buddy allocator's state
-    static void printCondition();
+    static void PrintCondition();
 };

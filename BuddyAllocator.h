@@ -42,9 +42,9 @@ private:
     void* Allocate(size_t);
     void Deallocate(void*);
     std::pair<void*, size_t> AllocateUseful(size_t);
-    static size_t max_size();
-    bool isInside(void*) const;
-    void printCondition() const;
+    static size_t MaxSize();
+    bool Contains(void*) const;
+    void PrintCondition() const;
 #if HPC_DEBUG == 1
     static void sign(Superblock*);
     static uint32_t getSignature(Superblock*);

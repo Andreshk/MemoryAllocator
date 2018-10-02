@@ -61,7 +61,7 @@ namespace andi
         }
 
         size_type max_size() const noexcept {
-            return MemoryArena::max_size() / sizeof(allocator<T>::value_type);
+            return MemoryArena::MaxSize() / sizeof(allocator<T>::value_type);
         }
     };
 }
