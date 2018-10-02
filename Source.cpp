@@ -1,4 +1,4 @@
-﻿#include "Allocator.h"
+#include "Allocator.h"
 #include <thread>
 // STL, used for comparison
 #include <vector>
@@ -15,15 +15,7 @@
  - implement vassert()
  - make an Allocator interface: Initialize, Deinitialize, Print, Allocate, Deallocate, Contains, MaxSize, UsefulSize
  - make minimal andi::allocator (Bob Steagall 2017, 43:56)
- - simplify time measurement (A chrono tutorial, 50:03)
  */
-
-// Time measuring
-using Clock = std::chrono::high_resolution_clock;
-using TimePoint = Clock::time_point;
-double milliseconds(const TimePoint& _Start, const TimePoint& _End) {
-    return 1000 * std::chrono::duration_cast<std::chrono::duration<double>>(_End - _Start).count();
-}
 
 // For convenience: andi::string instead of std::string, andi::vector<int>, andi::map<...>, etc.
 namespace andi
@@ -38,10 +30,11 @@ namespace andi
 }
 
 // A simple benchmark + some helper functions
+using std::chrono::microseconds;
 void testRandomStringAllocation(size_t, size_t, size_t, size_t);
 template<template<class> class Allocator>
-double singleTestTimer(const andi::vector<size_t>&);
-void printTestResults(const andi::vector<std::pair<double, double>>&);
+microseconds singleTestTimer(const andi::vector<size_t>&);
+void printTestResults(const andi::vector<std::pair<microseconds, microseconds>>&);
 
 int main() {
     MemoryArena::Initialize();
@@ -67,7 +60,7 @@ void testRandomStringAllocation(size_t _Repetitions, size_t _nStrings, size_t _M
     // and then deallocate about a quarter of them. Afterwards, allocate
     // again the previously deallocated, and stop the timer. The deallocation
     // of everything at the end of the function is not included in the time.
-    andi::vector<std::pair<double, double>> times(_Repetitions);
+    andi::vector<std::pair<microseconds, microseconds>> times(_Repetitions);
     std::default_random_engine gen;
     std::uniform_int_distribution<size_t> distr(_MinLength, _MaxLength);
     andi::vector<size_t> lengths(_nStrings);
@@ -89,11 +82,11 @@ void testRandomStringAllocation(size_t _Repetitions, size_t _nStrings, size_t _M
 }
 
 template<template<class> class Allocator>
-double singleTestTimer(const andi::vector<size_t>& _Lengths) {
+microseconds singleTestTimer(const andi::vector<size_t>& _Lengths) {
     const size_t n = _Lengths.size();
     andi::vector<int> free(n, 0);
 
-    TimePoint start = Clock::now();
+    auto start = std::chrono::steady_clock::now();
     char** strings = Allocator<char*>().allocate(n);
     Allocator<char> al;
     for (size_t i = 0; i < n; i++)
@@ -108,25 +101,26 @@ double singleTestTimer(const andi::vector<size_t>& _Lengths) {
         if (free[i])
             strings[i] = al.allocate(_Lengths[i]);
     
-    TimePoint end = Clock::now();
+    auto end = std::chrono::steady_clock::now();
 
     for (size_t i = 0; i < n; i++)
         al.deallocate(strings[i], _Lengths[i]);
     Allocator<char*>().deallocate(strings, n);
 
-    return milliseconds(start,end);
+    return std::chrono::duration_cast<microseconds>(end - start);
 }
 
-void printTestResults(const andi::vector<std::pair<double, double>>& _Times) {
+void printTestResults(const andi::vector<std::pair<microseconds, microseconds>>& _Times) {
     if (_Times.size() == 0)
         return;
     double a = 0., s = 0.;
     std::cout << "andi::allocator\tstd::allocator\tdifference\t(%)\n";
     for (const auto& p : _Times) {
-        a += p.first;
-        s += p.second;
-        std::cout << "  " << p.first << "ms\t  " << p.second << "ms\t" << p.first - p.second
-                  << "ms\t(" << 100 * (p.first - p.second) / p.second << "%)\n";
+        const double a_ = double(p.first.count()) / 1000.;
+        const double s_ = double(p.second.count()) / 1000.;
+        a += a_; s += s_;
+        std::cout << "  " << a_ << "ms\t  " << s_ << "ms\t" << a_ - s_
+                  << "ms\t(" << 100 * (a_ - s_) / s_ << "%)\n";
     }
     a /= _Times.size();
     s /= _Times.size();
