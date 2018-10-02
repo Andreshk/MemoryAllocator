@@ -71,7 +71,7 @@ void BuddyAllocator::Deallocate(void* ptr) {
 std::pair<void*, size_t> BuddyAllocator::AllocateUseful(size_t n) {
     void* ptr = Allocate(n);
     const size_t k = fromUserAddress(ptr)->k;
-    return { ptr, (size_t(1) << k) - Constants::HeaderSize };
+    return { ptr, (size_t(1) << (k - 1)) - Constants::HeaderSize };
 }
 
 size_t BuddyAllocator::max_size() {
