@@ -9,6 +9,7 @@ class PoolAllocator {
 
     static_assert(N >= Constants::Alignment && !(N&(N - 1)),
         "N has to be a power of two, no less than the alignment requirement!");
+    static_assert(N >= 2 * sizeof(size_t));
     struct Smallblock {
         size_t next;
         size_t pad[N / sizeof(size_t) - 1];
@@ -32,10 +33,10 @@ class PoolAllocator {
     static size_t MaxSize();
 #if HPC_DEBUG == 1
     // Here the signatures work in the other way - only the free blocks are signed
-    static void signFreeBlock(Smallblock*);
-    static void unsignFreeBlock(Smallblock*);
-    static size_t getSignature(Smallblock*);
-    static bool isSigned(Smallblock*);
+    static void signFreeBlock(Smallblock&);
+    static void unsignFreeBlock(Smallblock&);
+    static size_t getSignature(const Smallblock&);
+    static bool isSigned(const Smallblock&);
 #endif // HPC_DEBUG
 
 public:
@@ -65,7 +66,7 @@ void PoolAllocator<N, Count>::Initialize() {
     for (size_t i = 0; i < Count; i++) {
         blocksPtr[i].next = i + 1;
 #if HPC_DEBUG == 1
-        signFreeBlock(blocksPtr + i);
+        signFreeBlock(blocksPtr[i]);
 #endif // HPC_DEBUG
     }
     blocksPtr[Count - 1].next = Constants::InvalidIdx;
@@ -90,21 +91,21 @@ void* PoolAllocator<N, Count>::Allocate() {
     headIdx = blocksPtr[free].next;
     ++allocatedBlocks;
 #if HPC_DEBUG == 1
-    unsignFreeBlock(blocksPtr + free);
+    unsignFreeBlock(blocksPtr[free]);
 #endif // HPC_DEBUG
-    return blocksPtr + free;
+    return &blocksPtr[free];
 }
 
 template<size_t N, size_t Count>
 void PoolAllocator<N, Count>::Deallocate(void* sblk) {
+    vassert((uintptr_t(sblk) - uintptr_t(blocksPtr)) % sizeof(Smallblock) == 0
+        && "MemoryArena: Attempting to free a non-aligned pointer!");
+    vassert(isSigned(*(Smallblock*)sblk)
+        && "MemoryArena: attempting to free memory that has already been freed!\n");
     andi::lock_guard lock{ mtx };
     size_t idx = (Smallblock*)sblk - blocksPtr;
-    vassert(uintptr_t(sblk) % Constants::Alignment == 0
-        && "MemoryArena: Attempting to free a non-aligned pointer!");
-    vassert(isSigned((Smallblock*)sblk)
-        && "MemoryArena: attempting to free memory that has already been freed!\n");
 #if HPC_DEBUG == 1
-    signFreeBlock((Smallblock*)(blocksPtr + idx));
+    signFreeBlock(blocksPtr[idx]);
 #endif // HPC_DEBUG
     --allocatedBlocks;
     blocksPtr[idx].next = headIdx;
@@ -126,7 +127,7 @@ void PoolAllocator<N, Count>::PrintCondition() const {
 
 template<size_t N, size_t Count>
 bool PoolAllocator<N, Count>::Contains(void* ptr) const {
-    return ptr >= blocksPtr && ptr < (blocksPtr + N*Count);
+    return ptr >= blocksPtr && ptr < &blocksPtr[N];
 }
 
 template<size_t N, size_t Count>
@@ -136,25 +137,25 @@ size_t PoolAllocator<N, Count>::MaxSize() {
 
 #if HPC_DEBUG == 1
 template<size_t N, size_t Count>
-void PoolAllocator<N, Count>::signFreeBlock(Smallblock* ptr) {
-    ptr->pad[0] = getSignature(ptr);
+void PoolAllocator<N, Count>::signFreeBlock(Smallblock& sblk) {
+    sblk.pad[0] = getSignature(sblk);
 }
 
 template<size_t N, size_t Count>
-void PoolAllocator<N, Count>::unsignFreeBlock(Smallblock* ptr) {
-    ptr->pad[0] = 0;
+void PoolAllocator<N, Count>::unsignFreeBlock(Smallblock& sblk) {
+    sblk.pad[0] = 0;
 }
 
 template<size_t N, size_t Count>
-size_t PoolAllocator<N, Count>::getSignature(Smallblock* ptr) {
-    return ~size_t(ptr);
+size_t PoolAllocator<N, Count>::getSignature(const Smallblock& sblk) {
+    return ~size_t(&sblk);
 }
 
 template<size_t N, size_t Count>
-bool PoolAllocator<N, Count>::isSigned(Smallblock* ptr) {
+bool PoolAllocator<N, Count>::isSigned(const Smallblock& sblk) {
     // There is a 1 in 2^64 chance of a false positive,
     // decreasing exponentially every time the program is ran.
-    return (ptr->pad[0] == getSignature(ptr));
+    return (sblk.pad[0] == getSignature(sblk));
 }
 #endif // HPC_DEBUG
 

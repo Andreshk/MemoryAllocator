@@ -60,8 +60,8 @@ namespace andi
     };
 
 #if HPC_DEBUG == 1
-    void vassert_impl(const char* expr, const char* file, const unsigned line);
-    #define vassert(expr) ((void)(!!(expr) || (andi::vassert_impl(#expr, __FILE__, __LINE__), 0)))
+    void vassert_impl(const char* expr, const char* function, const char* file, const unsigned line);
+    #define vassert(expr) ((void)(!!(expr) || (andi::vassert_impl(#expr, __FUNCTION__, __FILE__, __LINE__), 0)))
 #else
     #define vassert(expr) ((void)0)
 #endif // HPC_DEBUG

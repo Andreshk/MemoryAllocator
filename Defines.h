@@ -35,7 +35,6 @@ enum Constants : size_t {
 
 // Sanity checks for global constants' validity
 static_assert(Constants::HeaderSize < Constants::Alignment);
-static_assert(Constants::Alignment >= sizeof(size_t)); // required for PoolAllocator::Smallblock
 static_assert(Constants::Alignment % alignof(Superblock) == 0); // virtualZero should be a valid Superblock address
 static_assert(Constants::K <= 63); // we want (2^largePoolSizeLog) to fit in 64 bits
 static_assert(Constants::HeaderSize < Constants::MinAllocationSize); // otherwise headers overlap and mayhem ensues
