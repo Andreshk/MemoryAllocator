@@ -15,8 +15,7 @@
  */
 
 // For convenience: andi::string instead of std::string, andi::vector<int>, andi::map<...>, etc.
-namespace andi
-{
+namespace andi {
     using string = std::basic_string<char, std::char_traits<char>, andi::allocator<char>>;
 
     template<class T>
@@ -31,7 +30,6 @@ using std::chrono::microseconds;
 void testRandomStringAllocation(size_t, size_t, size_t, size_t);
 template<template<class> class Allocator>
 microseconds singleTestTimer(const andi::vector<size_t>&);
-void printTestResults(const andi::vector<std::pair<microseconds, microseconds>>&);
 
 int main() {
     MemoryArena::Initialize();
@@ -50,8 +48,7 @@ int main() {
     MemoryArena::Deinitialize();
 }
 
-void testRandomStringAllocation(size_t numReps, size_t nStrings, size_t minLength, size_t maxLength)
-{
+void testRandomStringAllocation(size_t numReps, size_t nStrings, size_t minLength, size_t maxLength) {
     // numReps iterations of the following procedure: allocate nStrings
     // char* arrays with random length between minLength and maxLength,
     // and then deallocate about a quarter of them. Afterwards, allocate
@@ -75,7 +72,20 @@ void testRandomStringAllocation(size_t numReps, size_t nStrings, size_t minLengt
     andi::lock_guard lock{ coutmtx };
     std::cout << "Testing " << nStrings << " string allocations and ~" << nStrings / 4 << " reallocations...\n";
     std::cout << "String length between " << minLength << " and " << maxLength << ".\n";
-    printTestResults(times);
+    // Print the timings from the tests
+    double a = 0., s = 0.;
+    std::cout << "andi::allocator\tstd::allocator\tdifference\t(%)\n";
+    for (const auto& p : times) {
+        const double a_ = double(p.first.count()) / 1000.;
+        const double s_ = double(p.second.count()) / 1000.;
+        a += a_; s += s_;
+        std::cout << "  " << a_ << "ms\t  " << s_ << "ms\t" << a_ - s_
+            << "ms\t(" << 100 * (a_ - s_) / s_ << "%)\n";
+    }
+    a /= times.size();
+    s /= times.size();
+    std::cout << "Average:\n  " << a << "ms\t  " << s << "ms\t" << a - s << "ms\t(" << 100 * (a - s) / s << "%)\n";
+    std::cout << "\n";
 }
 
 template<template<class> class Allocator>
@@ -103,24 +113,6 @@ microseconds singleTestTimer(const andi::vector<size_t>& lengths) {
     Allocator<char*>().deallocate(strings, n);
 
     return std::chrono::duration_cast<microseconds>(end - start);
-}
-
-void printTestResults(const andi::vector<std::pair<microseconds, microseconds>>& times) {
-    if (times.size() == 0)
-        return;
-    double a = 0., s = 0.;
-    std::cout << "andi::allocator\tstd::allocator\tdifference\t(%)\n";
-    for (const auto& p : times) {
-        const double a_ = double(p.first.count()) / 1000.;
-        const double s_ = double(p.second.count()) / 1000.;
-        a += a_; s += s_;
-        std::cout << "  " << a_ << "ms\t  " << s_ << "ms\t" << a_ - s_
-                  << "ms\t(" << 100 * (a_ - s_) / s_ << "%)\n";
-    }
-    a /= times.size();
-    s /= times.size();
-    std::cout << "Average:\n  " << a << "ms\t  " << s << "ms\t" << a - s << "ms\t(" << 100 * (a - s) / s << "%)\n";
-    std::cout << "\n";
 }
 
 // iei
