@@ -51,7 +51,7 @@ bool MemoryArena::Deinitialize() {
 void* MemoryArena::Allocate(size_t n) {
     if (n == 0)
         return nullptr;
-    vassert(arena.initialized && "MemoryArena must be initialized before allocation!\n");
+    vassert(arena.initialized && "MemoryArena must be initialized before allocation!");
 
     void* ptr = nullptr;
 #if USE_POOL_ALLOCATORS == 1
@@ -75,14 +75,15 @@ void* MemoryArena::Allocate(size_t n) {
 #if USE_POOL_ALLOCATORS == 1
     }
 #endif // USE_POOL_ALLOCATORS
+    vassert(ptr);
     return ptr;
 }
 
 void MemoryArena::Deallocate(void* ptr) {
     if (!ptr)
         return;
-    vassert(arena.initialized && "MemoryArena must be initialized before deallocation!\n");
-    vassert(arena.Contains(ptr) && "MemoryArena: pointer is outside of the address space!\n");
+    vassert(arena.initialized && "MemoryArena must be initialized before deallocation!");
+    vassert(arena.Contains(ptr) && "MemoryArena: pointer is outside of the address space!");
 
 #if USE_POOL_ALLOCATORS == 1
     if (arena.pool0.Contains(ptr))
@@ -108,7 +109,7 @@ void MemoryArena::Deallocate(void* ptr) {
 std::pair<void*, size_t> MemoryArena::AllocateUseful(size_t n){
     if (n == 0)
         return { nullptr, 0 };
-    vassert(arena.initialized && "MemoryArena must be initialized before allocation!\n");
+    vassert(arena.initialized && "MemoryArena must be initialized before allocation!");
 
     std::pair<void*, size_t> res{ nullptr, 0 };
 #if USE_POOL_ALLOCATORS == 1

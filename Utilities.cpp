@@ -21,7 +21,6 @@ void andi::aligned_free(void* ptr) {
 
 #if HPC_DEBUG == 1
 void andi::vassert_impl(const char* expr, const char* function, const char* file, const unsigned line) {
-    // iei
     static andi::mutex cerrmtx;
     andi::lock_guard lock{ cerrmtx };
     std::cerr << "Assert failed: "   << expr

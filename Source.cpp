@@ -10,10 +10,8 @@
 #include <random>
 
 /* TO-DO:
- - FIX THE SMALL POOLS (!)
- - add Benchmarks.{h,cpp}
- - implement vassert()
- - make an Allocator interface: Initialize, Deinitialize, Print, Allocate, Deallocate, Contains, MaxSize, UsefulSize
+ - seed the random engine with a time-dependent value
+ - implement vassert() w/ DebugBreak()
  - make minimal andi::allocator (Bob Steagall 2017, 43:56)
  */
 
@@ -53,17 +51,17 @@ int main() {
     MemoryArena::Deinitialize();
 }
 
-void testRandomStringAllocation(size_t _Repetitions, size_t _nStrings, size_t _MinLength, size_t _MaxLength)
+void testRandomStringAllocation(size_t numReps, size_t nStrings, size_t minLength, size_t maxLength)
 {
-    // _Repetitions iterations of the following procedure: allocate _nStrings
-    // char* arrays with random length between _MinLength and _MaxLength,
+    // numReps iterations of the following procedure: allocate nStrings
+    // char* arrays with random length between minLength and maxLength,
     // and then deallocate about a quarter of them. Afterwards, allocate
     // again the previously deallocated, and stop the timer. The deallocation
     // of everything at the end of the function is not included in the time.
-    andi::vector<std::pair<microseconds, microseconds>> times(_Repetitions);
+    andi::vector<std::pair<microseconds, microseconds>> times(numReps);
     std::default_random_engine gen;
-    std::uniform_int_distribution<size_t> distr(_MinLength, _MaxLength);
-    andi::vector<size_t> lengths(_nStrings);
+    std::uniform_int_distribution<size_t> distr(minLength, maxLength);
+    andi::vector<size_t> lengths(nStrings);
     static andi::mutex coutmtx;
 
     for (auto& p : times) {
@@ -76,54 +74,52 @@ void testRandomStringAllocation(size_t _Repetitions, size_t _nStrings, size_t _M
     }
 
     andi::lock_guard lock{ coutmtx };
-    std::cout << "Testing " << _nStrings << " string allocations and ~" << _nStrings / 4 << " reallocations...\n";
-    std::cout << "String length between " << _MinLength << " and " << _MaxLength << ".\n";
+    std::cout << "Testing " << nStrings << " string allocations and ~" << nStrings / 4 << " reallocations...\n";
+    std::cout << "String length between " << minLength << " and " << maxLength << ".\n";
     printTestResults(times);
 }
 
 template<template<class> class Allocator>
-microseconds singleTestTimer(const andi::vector<size_t>& _Lengths) {
-    const size_t n = _Lengths.size();
-    andi::vector<int> free(n, 0);
+microseconds singleTestTimer(const andi::vector<size_t>& lengths) {
+    const size_t n = lengths.size();
 
     auto start = std::chrono::steady_clock::now();
     char** strings = Allocator<char*>().allocate(n);
     Allocator<char> al;
     for (size_t i = 0; i < n; i++)
-        strings[i] = al.allocate(_Lengths[i]);
+        strings[i] = al.allocate(lengths[i]);
     
     for (size_t i = 0; i < n; i++)
-        if (_Lengths[i] % 4 == 0) {
-            al.deallocate(strings[i], _Lengths[i]);
-            free[i] = 1;
-    }
+        if (lengths[i] % 4 == 0)
+            al.deallocate(strings[i], lengths[i]);
+    
     for (size_t i = 0; i < n; i++)
-        if (free[i])
-            strings[i] = al.allocate(_Lengths[i]);
+        if (lengths[i] % 4 == 0)
+            strings[i] = al.allocate(lengths[i]);
     
     auto end = std::chrono::steady_clock::now();
 
     for (size_t i = 0; i < n; i++)
-        al.deallocate(strings[i], _Lengths[i]);
+        al.deallocate(strings[i], lengths[i]);
     Allocator<char*>().deallocate(strings, n);
 
     return std::chrono::duration_cast<microseconds>(end - start);
 }
 
-void printTestResults(const andi::vector<std::pair<microseconds, microseconds>>& _Times) {
-    if (_Times.size() == 0)
+void printTestResults(const andi::vector<std::pair<microseconds, microseconds>>& times) {
+    if (times.size() == 0)
         return;
     double a = 0., s = 0.;
     std::cout << "andi::allocator\tstd::allocator\tdifference\t(%)\n";
-    for (const auto& p : _Times) {
+    for (const auto& p : times) {
         const double a_ = double(p.first.count()) / 1000.;
         const double s_ = double(p.second.count()) / 1000.;
         a += a_; s += s_;
         std::cout << "  " << a_ << "ms\t  " << s_ << "ms\t" << a_ - s_
                   << "ms\t(" << 100 * (a_ - s_) / s_ << "%)\n";
     }
-    a /= _Times.size();
-    s /= _Times.size();
+    a /= times.size();
+    s /= times.size();
     std::cout << "Average:\n  " << a << "ms\t  " << s << "ms\t" << a - s << "ms\t(" << 100 * (a - s) / s << "%)\n";
     std::cout << "\n";
 }

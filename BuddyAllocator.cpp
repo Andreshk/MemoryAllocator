@@ -52,7 +52,7 @@ void BuddyAllocator::Deinitialize() {
 }
 
 void* BuddyAllocator::Allocate(size_t n) {
-    if (n > Constants::MaxAllocationSize)
+    if (n > MaxSize())
         return nullptr;
     andi::lock_guard lock{ mtx };
     return allocateSuperblock(n);
@@ -182,7 +182,7 @@ void* BuddyAllocator::allocateSuperblock(size_t n) {
 #if HPC_DEBUG == 1
         sign(sblk);
 #endif
-        // ъпдейтваме системната информация
+        // update the system information
         insertFreeSuperblock(sblk);
     }
     // A "right" super block may not be needed, too

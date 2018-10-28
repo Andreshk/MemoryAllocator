@@ -12,7 +12,8 @@ class PoolAllocator {
     static_assert(N >= 2 * sizeof(size_t));
     struct Smallblock {
         size_t next;
-        size_t pad[N / sizeof(size_t) - 1];
+        size_t signature;
+        size_t pad[N / sizeof(size_t) - 2];
     };
 
     Smallblock* blocksPtr;
@@ -87,21 +88,21 @@ void* PoolAllocator<N, Count>::Allocate() {
     if (headIdx == Constants::InvalidIdx)
         return nullptr;
 
-    size_t free = headIdx;
-    headIdx = blocksPtr[free].next;
+    Smallblock& sblk = blocksPtr[headIdx];
+    headIdx = sblk.next;
     ++allocatedBlocks;
 #if HPC_DEBUG == 1
-    unsignFreeBlock(blocksPtr[free]);
+    unsignFreeBlock(sblk);
 #endif // HPC_DEBUG
-    return &blocksPtr[free];
+    return &sblk;
 }
 
 template<size_t N, size_t Count>
 void PoolAllocator<N, Count>::Deallocate(void* sblk) {
     vassert((uintptr_t(sblk) - uintptr_t(blocksPtr)) % sizeof(Smallblock) == 0
         && "MemoryArena: Attempting to free a non-aligned pointer!");
-    vassert(isSigned(*(Smallblock*)sblk)
-        && "MemoryArena: attempting to free memory that has already been freed!\n");
+    vassert(!isSigned(*(Smallblock*)sblk)
+        && "MemoryArena: attempting to free memory that has already been freed!");
     andi::lock_guard lock{ mtx };
     size_t idx = (Smallblock*)sblk - blocksPtr;
 #if HPC_DEBUG == 1
@@ -127,7 +128,7 @@ void PoolAllocator<N, Count>::PrintCondition() const {
 
 template<size_t N, size_t Count>
 bool PoolAllocator<N, Count>::Contains(void* ptr) const {
-    return ptr >= blocksPtr && ptr < &blocksPtr[N];
+    return ptr >= blocksPtr && ptr < &blocksPtr[Count];
 }
 
 template<size_t N, size_t Count>
@@ -138,12 +139,12 @@ size_t PoolAllocator<N, Count>::MaxSize() {
 #if HPC_DEBUG == 1
 template<size_t N, size_t Count>
 void PoolAllocator<N, Count>::signFreeBlock(Smallblock& sblk) {
-    sblk.pad[0] = getSignature(sblk);
+    sblk.signature = getSignature(sblk);
 }
 
 template<size_t N, size_t Count>
 void PoolAllocator<N, Count>::unsignFreeBlock(Smallblock& sblk) {
-    sblk.pad[0] = 0;
+    sblk.signature = 0;
 }
 
 template<size_t N, size_t Count>
@@ -155,7 +156,7 @@ template<size_t N, size_t Count>
 bool PoolAllocator<N, Count>::isSigned(const Smallblock& sblk) {
     // There is a 1 in 2^64 chance of a false positive,
     // decreasing exponentially every time the program is ran.
-    return (sblk.pad[0] == getSignature(sblk));
+    return (sblk.signature == getSignature(sblk));
 }
 #endif // HPC_DEBUG
 

@@ -1,7 +1,7 @@
 #pragma once
 // These definitions control the allocator behaviour (see README.md)
 #define HPC_DEBUG 1
-#define USE_POOL_ALLOCATORS 0
+#define USE_POOL_ALLOCATORS 1
 
 #include "Utilities.h"
 
