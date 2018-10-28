@@ -10,7 +10,6 @@
 #include <random>
 
 /* TO-DO:
- - seed the random engine with a time-dependent value
  - implement vassert() w/ DebugBreak()
  - make minimal andi::allocator (Bob Steagall 2017, 43:56)
  */
@@ -58,11 +57,10 @@ void testRandomStringAllocation(size_t numReps, size_t nStrings, size_t minLengt
     // and then deallocate about a quarter of them. Afterwards, allocate
     // again the previously deallocated, and stop the timer. The deallocation
     // of everything at the end of the function is not included in the time.
-    andi::vector<std::pair<microseconds, microseconds>> times(numReps);
-    std::default_random_engine gen;
+    std::mt19937 gen{ static_cast<unsigned>(std::chrono::steady_clock::now().time_since_epoch().count()) };
     std::uniform_int_distribution<size_t> distr(minLength, maxLength);
+    andi::vector<std::pair<microseconds, microseconds>> times(numReps);
     andi::vector<size_t> lengths(nStrings);
-    static andi::mutex coutmtx;
 
     for (auto& p : times) {
         // generate the arrays lengths beforehand
@@ -73,6 +71,7 @@ void testRandomStringAllocation(size_t numReps, size_t nStrings, size_t minLengt
               singleTestTimer<std::allocator>(lengths) };
     }
 
+    static andi::mutex coutmtx;
     andi::lock_guard lock{ coutmtx };
     std::cout << "Testing " << nStrings << " string allocations and ~" << nStrings / 4 << " reallocations...\n";
     std::cout << "String length between " << minLength << " and " << maxLength << ".\n";
