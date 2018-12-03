@@ -6,6 +6,10 @@
 #include <iostream> // for allocator internal state print-out
 #include <utility>  // std::pair
 
+#if !defined(HPC_DEBUG) || !defined(USE_POOL_ALLOCATORS)
+    #error "Please include Defines.h before defining anything."
+#endif // HPC_DEBUG || USE_POOL_ALLOCATORS
+
 // Each BuddyAllocator allocation needs the following header to manage the allocations.
 // In theory this header can be reduced to 7 bits (!) -> O(lglgn)
 struct SuperblockHeader {
